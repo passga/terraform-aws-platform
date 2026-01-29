@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+TERRAFORM_STATE=$(cat /opt/terraform/aws/terraform.tfstate)
+
+TOKEN=$(echo $TERRAFORM_STATE  | jq '.outputs.tokenRancherCLI.value')
+TOKEN=$(echo "${TOKEN//\"/ }")
+
+
+PROJECT_ID=$(echo $TERRAFORM_STATE  | jq '.outputs.project_id.value')
+PROJECT_ID=$(echo "${PROJECT_ID//\"/ }")
+
+RANCHER_SERVER_URL=$(echo $TERRAFORM_STATE  | jq '.outputs.rancher_server_url.value')
+RANCHER_SERVER_URL=$(echo "${RANCHER_SERVER_URL//\"/ }")
+
+echo "Try to login on rancher server : '${RANCHER_SERVER_URL}' on context '${PROJECT_ID}'"
+
+rancher login --token $TOKEN --context $PROJECT_ID $RANCHER_SERVER_URL --skip-verify
+
+echo "login successfully"

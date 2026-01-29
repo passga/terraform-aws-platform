@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+
+
+terraform -chdir=/opt/terraform/aws/ destroy --auto-approve

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -euo pipefail
+
+CLUSTER_NAME=${CLUSTER_NAME:-perf}
+
+
+
+ if login | $(grep -q "${FATA}")
+ then
+   echo "Rancher cluster '${CLUSTER_NAME}' not found"
+ else
+ echo "Try to delete nodes of kubernetes cluster : '$CLUSTER_NAME'"
+ terraform -chdir=/opt/terraform/aws/ destroy --auto-approve -target="module.rancher_rke"
+fi
+
+
+

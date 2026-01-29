@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+
+echo "Try to create performance infrastructure :"
+echo " - Rancher Server"
+echo " - Kubernetes Performance Cluster"
+
+terraform -chdir=/opt/terraform/aws/ init
+terraform -chdir=/opt/terraform/aws/ apply --auto-approve
+
+echo "Performance infrastructure created"
