@@ -1,7 +1,6 @@
 # AWS
 .aws/
-tools/sauron/aws/*
-!tools/sauron/aws/.gitkeep
+
 
 # Terraform
 .terraform/
