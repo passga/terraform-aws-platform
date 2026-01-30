@@ -46,20 +46,20 @@ resource "helm_release" "rancher_server" {
     value = "1"
   }
 
-#  set {
-#    name  = "letsEncrypt.email"
-#    value = "rd.user@example.com"
-#  }
-#
-#  set {
-#    name  = "ingress.tls.source"
-#    value = "letsEncrypt"
-#  }
-#
-#  set {
-#    name  = "letsEncrypt.environment"
-#    value = "production"
-#  }
+  #  set {
+  #    name  = "letsEncrypt.email"
+  #    value = "rd.user@example.com"
+  #  }
+  #
+  #  set {
+  #    name  = "ingress.tls.source"
+  #    value = "letsEncrypt"
+  #  }
+  #
+  #  set {
+  #    name  = "letsEncrypt.environment"
+  #    value = "production"
+  #  }
 
   set {
     name  = "bootstrapPassword"

@@ -3,15 +3,15 @@ resource "rancher2_cloud_credential" "perf_node" {
   name        = "perf_node"
   description = "Terraform cloudCredential performance test"
   amazonec2_credential_config {
-    access_key = var.access_key
-    secret_key = var.secret_key
+    access_key = var.rancher_aws_access_key
+    secret_key = var.rancher_aws_secret_key
   }
 }
 
 resource "rancher2_cluster" "perf_cluster" {
   name        = var.workload_cluster_name
   description = "${var.prefix} rancher2 custom cluster"
-  depends_on = [rancher2_node_template.perf_cluster_template_ec2]
+  depends_on  = [rancher2_node_template.perf_cluster_template_ec2]
   rke_config {
     network {
       plugin  = local.rke_network_plugin
@@ -27,7 +27,7 @@ resource "rancher2_node_template" "perf_cluster_template_ec2" {
   name                = "${var.workload_cluster_name} node template"
   description         = "aws node template gvo"
   cloud_credential_id = rancher2_cloud_credential.perf_node.id
-  engine_install_url = var.dockerurl
+  engine_install_url  = var.dockerurl
   amazonec2_config {
     ami            = data.aws_ami.ubuntu.id
     instance_type  = var.instance_type
@@ -60,7 +60,7 @@ resource "rancher2_node_pool" "worker" {
   node_template_id = rancher2_node_template.perf_cluster_template_ec2.id
   quantity         = 1
   worker           = true
-  depends_on = [rancher2_node_pool.master]
+  depends_on       = [rancher2_node_pool.master]
 }
 
 
@@ -68,7 +68,7 @@ resource "rancher2_cluster_sync" "perf-provisioning_workload_sync" {
   provider      = rancher2
   cluster_id    = rancher2_cluster.perf_cluster.id
   node_pool_ids = [rancher2_node_pool.master.id, rancher2_node_pool.worker.id]
-  depends_on = [rancher2_node_pool.worker]
+  depends_on    = [rancher2_node_pool.worker]
 }
 
 # Create a new rancher2 Project
@@ -88,7 +88,7 @@ resource "rancher2_namespace" "init-namespace" {
 }
 
 locals {
-  rke_network_plugin  = var.windows_prefered_cluster ? "flannel" : "canal"
+  rke_network_plugin = var.windows_prefered_cluster ? "flannel" : "canal"
   rke_network_options = var.windows_prefered_cluster ? {
     flannel_backend_port = "4789"
     flannel_backend_type = "vxlan"

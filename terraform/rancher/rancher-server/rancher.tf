@@ -7,7 +7,7 @@ resource "sshcommand_command" "install_k3s" {
 }
 
 resource "sshcommand_command" "retrieve_config" {
-  depends_on  = [
+  depends_on = [
     sshcommand_command.install_k3s
   ]
   host        = var.node_public_ip
@@ -30,6 +30,6 @@ resource "rancher2_bootstrap" "admin" {
 # Create a new rancher2 Token
 resource "rancher2_token" "tokenCLI" {
   description = "Rancher CLI Token"
-  ttl = 0
-  provider  = rancher2.admin
+  ttl         = 0
+  provider    = rancher2.admin
 }

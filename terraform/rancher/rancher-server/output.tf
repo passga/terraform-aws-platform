@@ -16,6 +16,6 @@ output "rancher_server_token" {
 
 # Required
 output "rancher_cli_token" {
-  value = rancher2_token.tokenCLI.token
+  value     = rancher2_token.tokenCLI.token
   sensitive = true
 }

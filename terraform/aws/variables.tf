@@ -3,6 +3,18 @@
 // TODO - use null defaults
 
 
+variable "rancher_aws_access_key" {
+  type      = string
+  sensitive = true
+  description = "AWS access key used by Rancher cloud credential (PoC)"
+}
+
+variable "rancher_aws_secret_key" {
+  type      = string
+  sensitive = true
+  description = "AWS secret key used by Rancher cloud credential (PoC)"
+}
+
 
 variable "aws_region" {
   type        = string
@@ -18,7 +30,7 @@ variable "availability_zone" {
 
 # Required
 variable "rancher_server_dns" {
-  description="Rancher server dns"
+  description = "Rancher server dns"
   type        = string
 }
 
@@ -47,14 +59,14 @@ variable "ssh_user" {
 }
 
 variable "ec2_keypair" {
-  description ="Name of pem  attached to all new ec2 instances created"
-  type    = string
+  description = "Name of pem  attached to all new ec2 instances created"
+  type        = string
 }
 
 # Required
 variable "ssh_private_key_file" {
-  type    = string
-  description ="Location of pem private file using for all ssh connexion"
+  type        = string
+  description = "Location of pem private file using for all ssh connexion"
 }
 
 
@@ -112,5 +124,9 @@ locals {
 
 variable "admin_cidr" {
   type        = string
-  description = "Admin IP in CIDR format (e.g. x.x.x.x/32)"
+  description = "Admin IP or CIDR"
+}
+
+locals {
+  admin_cidr_norm = can(cidrnetmask(var.admin_cidr)) ? var.admin_cidr : "${var.admin_cidr}/32"
 }

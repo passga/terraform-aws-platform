@@ -1,5 +1,9 @@
 # Terraform
 .terraform/
+.terraform.lock.hcl
+*.tfvars
+kube_config_*.yaml
+.env
 *.tfstate
 *.tfstate.*
 *.tfplan

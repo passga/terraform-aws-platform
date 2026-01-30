@@ -76,5 +76,5 @@ variable "windows_prefered_cluster" {
 }
 
 variable "prefix" {
-  type        = string
+  type = string
 }

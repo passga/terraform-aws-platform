@@ -13,8 +13,13 @@ variable "aws_vpc_id" {
   type = string
 }
 
-variable "secret_key" {
-  type = string
+variable "rancher_aws_access_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "rancher_aws_secret_key" {
+  type      = string
   sensitive = true
 }
 
@@ -22,10 +27,7 @@ variable "dockerurl" {
   default = "https://releases.rancher.com/install-docker/19.03.sh"
 }
 
-variable "access_key" {
-  type = string
-  sensitive = true
-}
+
 
 
 variable "aws_region" {

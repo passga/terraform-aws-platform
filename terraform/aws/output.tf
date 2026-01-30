@@ -13,17 +13,17 @@ output "rancher_server_ec2_instance_id" {
 }
 
 output "tokenRancherCLI" {
-  value = module.rancher_server.rancher_cli_token
+  value     = module.rancher_server.rancher_cli_token
   sensitive = true
 }
 
 output "rancher_server_subnet_id" {
-  value = aws_instance.rancher_server.subnet_id
+  value     = aws_instance.rancher_server.subnet_id
   sensitive = true
 }
 
 output "rancher_server_availability_zone" {
-  value = aws_instance.rancher_server.availability_zone
+  value     = aws_instance.rancher_server.availability_zone
   sensitive = true
 }
 

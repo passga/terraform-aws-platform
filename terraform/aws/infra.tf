@@ -3,12 +3,12 @@ resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = { Name = "${var.prefix}-vpc" }
+  tags                 = { Name = "${var.prefix}-vpc" }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
-  tags = { Name = "${var.prefix}-igw" }
+  tags   = { Name = "${var.prefix}-igw" }
 }
 
 resource "aws_subnet" "public" {
@@ -24,7 +24,7 @@ resource "aws_security_group" "rancher" {
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "${var.prefix}-rancher-sg"
+    Name      = "${var.prefix}-rancher-sg"
     ManagedBy = "terraform"
   }
 }
@@ -35,7 +35,7 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22
-  cidr_ipv4         = var.admin_cidr
+  cidr_ipv4         = local.admin_cidr_norm
 }
 
 resource "aws_vpc_security_group_ingress_rule" "https" {
@@ -43,7 +43,7 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443
-  cidr_ipv4         = var.admin_cidr
+  cidr_ipv4         = local.admin_cidr_norm
 }
 
 resource "aws_vpc_security_group_ingress_rule" "intra" {
@@ -71,12 +71,12 @@ resource "aws_vpc_security_group_egress_rule" "all" {
 #}
 # AWS EC2 instance for creating a two node RKE cluster and installing the Rancher server
 resource "aws_instance" "rancher_server" {
-  ami             = data.aws_ami.ubuntu.id
-  instance_type   = var.rancher_server_instance_type
-  key_name        = var.ec2_keypair
-  vpc_security_group_ids = [aws_security_group.rancher.id]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.rancher_server_instance_type
+  key_name                    = var.ec2_keypair
+  vpc_security_group_ids      = [aws_security_group.rancher.id]
   associate_public_ip_address = true
-  subnet_id = aws_subnet.public.id
+  subnet_id                   = aws_subnet.public.id
 
   root_block_device {
     volume_size = 8
@@ -97,26 +97,11 @@ resource "aws_eip" "rancher_server" {
 }
 
 resource "aws_eip_association" "rancher_server" {
-  instance_id        = aws_instance.rancher_server.id
+  instance_id   = aws_instance.rancher_server.id
   allocation_id = aws_eip.rancher_server.id
-  depends_on         = [aws_instance.rancher_server]
-
-  provisioner "remote-exec" {
-    inline = [
-      "echo 'Waiting for cloud-init to complete...'",
-      "cloud-init status --wait > /dev/null",
-      "echo 'Completed cloud-init!'",
-    ]
+  depends_on    = [aws_instance.rancher_server]
 
 
-    connection {
-      type        = "ssh"
-      host        = aws_eip.rancher_server.public_ip
-      user        = var.ssh_user
-      agent       = false
-      private_key = file(var.ssh_private_key_file)
-    }
-  }
 }
 
 
@@ -146,8 +131,8 @@ module "rancher_rke" {
   ec2_keypair             = var.ec2_keypair
   prefix                  = var.prefix
   instance_type           = var.workload_nodes_instance_type
-  access_key              = var.aws_access_key
-  secret_key              = var.aws_secret_key
+  rancher_aws_access_key  = var.rancher_aws_access_key
+  rancher_aws_secret_key  = var.rancher_aws_secret_key
   aws_region              = var.aws_region
   aws_zone                = var.aws_zone
   aws_subnet_id           = aws_instance.rancher_server.subnet_id
