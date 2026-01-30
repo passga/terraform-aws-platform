@@ -2,25 +2,7 @@
 
 // TODO - use null defaults
 
-# Required
-variable "aws_access_key" {
-  type        = string
-  description = "AWS access key used to create infrastructure"
-  sensitive = true
-}
 
-# Required
-variable "aws_secret_key" {
-  type        = string
-  description = "AWS secret key used to create AWS infrastructure"
-  sensitive = true
-}
-
-variable "aws_session_token" {
-  type        = string
-  description = "AWS session token used to create AWS infrastructure"
-  default     = ""
-}
 
 variable "aws_region" {
   type        = string
