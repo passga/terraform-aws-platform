@@ -6,6 +6,25 @@ resource "aws_vpc" "main" {
   tags                 = { Name = "${var.prefix}-vpc" }
 }
 
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "${var.prefix}-rt-public"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags   = { Name = "${var.prefix}-igw" }
@@ -46,6 +65,13 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
   cidr_ipv4         = local.admin_cidr_norm
 }
 
+resource "aws_vpc_security_group_ingress_rule" "k8s_api" {
+  security_group_id = aws_security_group.rancher.id
+  ip_protocol       = "tcp"
+  from_port         = 6443
+  to_port           = 6443
+  cidr_ipv4         = local.admin_cidr_norm
+}
 resource "aws_vpc_security_group_ingress_rule" "intra" {
   security_group_id            = aws_security_group.rancher.id
   ip_protocol                  = "-1"
