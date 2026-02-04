@@ -17,7 +17,7 @@ variable "cert_manager_version" {
 variable "rancher_version" {
   type        = string
   description = "Rancher server version (format: v0.0.0)"
-  default     = "v2.6.0"
+  default     = "v2.9.2"
 }
 
 # Required
@@ -77,4 +77,16 @@ variable "windows_prefered_cluster" {
 
 variable "prefix" {
   type = string
+  default = "perf"
 }
+
+
+
+variable "kubeconfig_context" {
+  type        = string
+  description = "Context kubeconfig à utiliser"
+  default     = null
+}
+
+variable "kubeconfig_path" { type = string }
+variable "rancher_hostname" { type = string }

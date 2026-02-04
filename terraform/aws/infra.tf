@@ -103,9 +103,42 @@ resource "aws_instance" "rancher_server" {
   vpc_security_group_ids      = [aws_security_group.rancher.id]
   associate_public_ip_address = true
   subnet_id                   = aws_subnet.public.id
+  user_data = <<-EOF
+    #!/bin/bash
+    set -euxo pipefail
+
+    apt-get update -y
+    apt-get install -y curl ca-certificates
+
+    # Récupère l'IP publique via AWS Instance Metadata Service v2 (IMDSv2)
+    TOKEN="$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")"
+
+    PUBLIC_IP="$(curl -s -H "X-aws-ec2-metadata-token: $${TOKEN}" \
+      http://169.254.169.254/latest/meta-data/public-ipv4)"
+
+    echo "Detected PUBLIC_IP=$${PUBLIC_IP}"
+
+    # Prépare la conf k3s pour inclure l'IP publique dans les SAN TLS
+    mkdir -p /etc/rancher/k3s
+    cat >/etc/rancher/k3s/config.yaml <<K3SCONFIG
+    tls-san:
+      - $${PUBLIC_IP}
+    K3SCONFIG
+
+    # Install k3s (server)
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${var.k3s_version}" sh -s - server
+
+    # Make kubeconfig readable by ubuntu user
+    mkdir -p /home/ubuntu/.kube
+    chmod 644  /etc/rancher/k3s/k3s.yaml
+    cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+    chown -R ubuntu:ubuntu /home/ubuntu/.kube
+  EOF
+
 
   root_block_device {
-    volume_size = 8
+    volume_size = 30
     volume_type = "gp3"
   }
 
@@ -117,6 +150,7 @@ resource "aws_instance" "rancher_server" {
 
 resource "aws_eip" "rancher_server" {
   domain = "vpc"
+  instance = aws_instance.rancher_server.id
   tags = {
     Name = "${var.prefix}-rancher-eip"
   }
@@ -130,39 +164,5 @@ resource "aws_eip_association" "rancher_server" {
 
 }
 
-
-module "rancher_server" {
-  source                        = "../rancher/rancher-server"
-  node_public_ip                = aws_eip_association.rancher_server.public_ip
-  node_internal_ip              = aws_instance.rancher_server.private_ip
-  node_username                 = var.ssh_user
-  ssh_private_key_pem           = file(var.ssh_private_key_file)
-  rancher_kubernetes_version    = var.rancher_kubernetes_version
-  cert_manager_version          = var.cert_manager_version
-  rancher_version               = var.rancher_version
-  rancher_server_dns            = var.rancher_server_dns
-  rancher_server_admin_password = var.rancher_server_admin_password
-  prefix                        = var.prefix
-}
-
-module "rancher_rke" {
-  source               = "../rancher/rancher-rke"
-  username             = var.ssh_user
-  rancher_server_dns   = var.rancher_server_dns
-  rancher_server_token = module.rancher_server.rancher_server_token
-
-  workload_cluster_name   = var.workload_cluster_name
-  docker_version          = var.docker_version
-  ec2_security_group_name = aws_security_group.rancher.name
-  ec2_keypair             = var.ec2_keypair
-  prefix                  = var.prefix
-  instance_type           = var.workload_nodes_instance_type
-  rancher_aws_access_key  = var.rancher_aws_access_key
-  rancher_aws_secret_key  = var.rancher_aws_secret_key
-  aws_region              = var.aws_region
-  aws_zone                = var.aws_zone
-  aws_subnet_id           = aws_instance.rancher_server.subnet_id
-  aws_vpc_id              = aws_vpc.main.id
-}
 
 

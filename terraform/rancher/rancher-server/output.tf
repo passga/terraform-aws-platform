@@ -1,17 +1,18 @@
 
 output "rancher_server_url" {
-  value = "https://${var.rancher_server_dns}"
+  value = "https://${var.rancher_hostname}"
 }
 
 # Required
 output "rancher_server_dns" {
-  value = var.rancher_server_dns
+  value = var.rancher_hostname
 }
 
 
 # Required
 output "rancher_server_token" {
   value = rancher2_bootstrap.admin.token
+   sensitive = true
 }
 
 # Required

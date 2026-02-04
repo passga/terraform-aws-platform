@@ -2,7 +2,7 @@
 provider "rancher2" {
   alias = "admin"
 
-  api_url  = "https://${var.rancher_server_dns}"
+  api_url  = "https://${var.rancher_hostname}"
   insecure = true
   # ca_certs  = data.kubernetes_secret.rancher_cert.data["ca.crt"]
   token_key = rancher2_bootstrap.admin.token
@@ -14,15 +14,19 @@ provider "rancher2" {
 provider "rancher2" {
   alias = "bootstrap"
 
-  api_url  = "https://${var.rancher_server_dns}"
+  api_url  = "https://${var.rancher_hostname}"
   insecure = true
   # ca_certs  = data.kubernetes_secret.rancher_cert.data["ca.crt"]
   bootstrap = true
 }
 
-# Helm provider
+provider "kubernetes" {
+  config_path = var.kubeconfig_path
+}
+
 provider "helm" {
-  kubernetes {
-    config_path = local_file.kube_config_server_yaml.filename
+  kubernetes ={
+    config_path = var.kubeconfig_path
   }
 }
+

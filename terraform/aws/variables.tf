@@ -4,14 +4,14 @@
 
 
 variable "rancher_aws_access_key" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
   description = "AWS access key used by Rancher cloud credential (PoC)"
 }
 
 variable "rancher_aws_secret_key" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
   description = "AWS secret key used by Rancher cloud credential (PoC)"
 }
 
@@ -43,13 +43,13 @@ variable "prefix" {
 variable "rancher_server_instance_type" {
   type        = string
   description = "Instance type used for rancher server ec2 instances"
-  default     = "t3.micro"
+  default     = "t3.medium"
 }
 
 variable "workload_nodes_instance_type" {
   type        = string
   description = "Instance type used for all workload nodes instances deployed"
-  default     = "t3.micro"
+  default     = "t3.medium"
 }
 
 
@@ -94,11 +94,6 @@ variable "aws_zone" {
   default     = "a"
 }
 
-variable "cert_manager_version" {
-  type        = string
-  description = "Version of cert-manager to install alongside Rancher (format: 0.0.0)"
-  default     = "1.5.3"
-}
 
 variable "rancher_version" {
   type        = string
@@ -127,6 +122,12 @@ variable "admin_cidr" {
   description = "Admin IP or CIDR"
 }
 
+variable "k3s_version" {
+  type    = string
+  default = "v1.29.4+k3s1"
+}
+
 locals {
   admin_cidr_norm = can(cidrnetmask(var.admin_cidr)) ? var.admin_cidr : "${var.admin_cidr}/32"
 }
+
