@@ -45,8 +45,6 @@ terraform/
 tools/
 └── scripts/
     └── fetch-kubeconfig.sh   # retrieves k3s kubeconfig from the server
-env/
-└── dev.tfvars                # example variables (optional)
 ```
 
 > cert-manager and Rancher are intentionally split into **separate Terraform states**
