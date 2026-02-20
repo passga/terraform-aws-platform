@@ -1,6 +1,4 @@
-output "letsencrypt_environment" {
-  value = var.letsencrypt_environment
-}
+
 
 output "rancher_server_url" {
   value       = local.rancher_api_url

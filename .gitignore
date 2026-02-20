@@ -1,7 +1,7 @@
 # AWS
 .aws/
 
-
+kube/*.yaml
 # Terraform
 .terraform/
 *.tfstate

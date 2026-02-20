@@ -11,14 +11,9 @@ variable "rancher_hostname" {
 variable "rancher_version" {
   type        = string
   description = "Rancher Helm chart version (e.g. v2.9.2)."
-  default     = "v2.9.2"
+  default     = "v2.13.2"
 }
 
-
-variable "letsencrypt_email" {
-  type        = string
-  description = "Email used by Let's Encrypt to issue the Rancher TLS certificate."
-}
 
 variable "letsencrypt_environment" {
   type        = string

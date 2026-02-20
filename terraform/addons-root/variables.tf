@@ -3,11 +3,6 @@ variable "kubeconfig_path" {
   description = "Path to the kubeconfig file used by the Kubernetes/Helm providers."
 }
 
-variable "cert_manager_version" {
-  type        = string
-  description = "cert-manager Helm chart version (e.g. 1.5.3)."
-  default     = "1.5.3"
-}
 
 variable "rancher_hostname" {
   type        = string
@@ -38,8 +33,3 @@ variable "letsencrypt_environment" {
 }
 
 
-variable "letsencrypt_email" {
-  type        = string
-  description = "Email used by Let's Encrypt to issue the Rancher TLS certificate."
-  default     = "pouet@gmail.com"
-}

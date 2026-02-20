@@ -66,3 +66,6 @@ resource "aws_eip_association" "k3s" {
   allocation_id = aws_eip.k3s.id
   depends_on    = [aws_instance.k3s]
 }
+
+
+

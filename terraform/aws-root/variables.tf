@@ -16,15 +16,15 @@ variable "prefix" {
   default     = "perf"
 }
 
-variable "rancher_server_instance_type" {
-  type        = string
-  description = "EC2 instance type for the k3s/Rancher server"
-  default     = "t3.medium"
-}
 
 variable "ssh_key_name" {
   type        = string
   description = "Name of the AWS EC2 key pair to attach to the instance"
+}
+
+variable "ssh_private_key" {
+  type        = string
+  description = "Path where the AWS EC2 key is located "
 }
 
 variable "admin_cidr" {
@@ -53,3 +53,5 @@ variable "k3s_version" {
 locals {
   admin_cidr_norm = can(cidrnetmask(var.admin_cidr)) ? var.admin_cidr : "${var.admin_cidr}/32"
 }
+
+

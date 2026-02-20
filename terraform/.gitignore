@@ -1,4 +1,6 @@
 # Terraform
+kube/*.yaml
+aws-root/kube/*.yaml
 .terraform/
 .terraform.lock.hcl
 *.tfvars

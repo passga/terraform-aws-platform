@@ -42,6 +42,7 @@ variable "ssh_key_name" {
   description = "Name of the AWS EC2 key pair to attach to the instance"
 }
 
+
 variable "k3s_version" {
   type        = string
   description = "k3s version to install"

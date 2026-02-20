@@ -3,29 +3,11 @@ resource "kubernetes_namespace" "cattle_system" {
   metadata { name = "cattle-system" }
 }
 
-resource "kubernetes_manifest" "clusterissuer_letsencrypt" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata   = { name = local.le_name }
-    spec = {
-      acme = {
-        email  = var.letsencrypt_email
-        server = local.le_server_url
-        privateKeySecretRef = { name = "${local.le_name}-account-key" }
-        solvers = [{
-          http01 = { ingress = { class = "traefik" } }
-        }]
-      }
-    }
-  }
-}
-
 
 resource "kubernetes_manifest" "rancher_certificate" {
   depends_on = [
-    kubernetes_namespace.cattle_system,
-    kubernetes_manifest.clusterissuer_letsencrypt]
+    kubernetes_namespace.cattle_system
+   ]
 
   manifest = {
     apiVersion = "cert-manager.io/v1"
@@ -116,7 +98,7 @@ resource "rancher2_bootstrap" "bootstrap" {
   depends_on = [null_resource.wait_rancher_pong]
   provider = rancher2
   # premier bootstrap : initial_password est généralement "admin"
-  initial_password = "admin"
+  initial_password = random_password.rancher_admin.result
   password         = random_password.rancher_admin.result
 }
 
