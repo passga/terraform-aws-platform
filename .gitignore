@@ -3,7 +3,7 @@
 # Local secrets / env
 env/*.tfvars
 env/*.tfvars.json
-
+*.zip
 # Local kubeconfig
 terraform/kube/*.yaml
 terraform/kube/*.yml
