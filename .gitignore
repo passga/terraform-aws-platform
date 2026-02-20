@@ -26,3 +26,6 @@ terraform.tfvars
 .DS_Store
 .idea/
 .vscode/
+# binaries / artifacts
+kubectl
+*.zip
