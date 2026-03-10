@@ -1,31 +1,18 @@
-# AWS
-.aws/
-# Local secrets / env
-env/*.tfvars
-env/*.tfvars.json
-*.zip
-# Local kubeconfig
-terraform/kube/*.yaml
-terraform/kube/*.yml
+# Terraform
+**/.terraform/
+**/terraform.tfstate*
+*.tfvars
+*.tfvars.json
+
+# Kubernetes / kubeconfig
+terraform/kube/*
+!terraform/kube/.gitkeep
 **/k3s.yaml
 **/kube/*.yaml
 **/kube/*.yml
 
-
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
-terraform.tfvars
-
-# Logs
-*.log
-
-# OS / IDE
-.DS_Store
-.idea/
-.vscode/
-# binaries / artifacts
-kubectl
-*.zip
+# Keys / secrets
+*.pem
+*.key
+id_rsa*
+.env

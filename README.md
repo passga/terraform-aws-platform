@@ -1,163 +1,180 @@
-# Rancher on k3s on AWS (Terraform)
 
-This project provisions a **k3s** server on **AWS** and deploys **Rancher** with:
-- **Traefik** as Ingress Controller (k3s default)
-- **cert-manager** for TLS
-- **Let’s Encrypt** (**staging** or **production**)
-- Rancher served with a **trusted public certificate** (no `insecure` mode)
+# Performance Tooling – Rancher on k3s with Terraform
 
----
+This repository contains a Terraform-based Proof of Concept (PoC) used to deploy a minimal platform stack on AWS:
 
-## Prerequisites
+- AWS infrastructure
+- k3s Kubernetes cluster
+- cert-manager
+- Rancher
 
-### AWS
-- An **AWS account**
-- An IAM user or role with permissions to create EC2 / networking resources
-- AWS credentials exported as environment variables:
-
-```bash
-export AWS_ACCESS_KEY_ID="xxxxxxxxxxxxxxxxxxxx"
-export AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-# optional
-export AWS_DEFAULT_REGION="eu-west-3"
-```
+The goal of the project is to experiment with platform engineering workflows and build a reproducible environment for testing Rancher and Kubernetes automation.
 
 ---
 
-### Local tools
-- `terraform` (>= 1.4)
-- `kubectl`
-- `helm` (>= 3)
-- `curl`, `bash`
+# Architecture Overview
+
+The stack is provisioned in layers:
+
+1. Infrastructure layer
+   - AWS VPC
+   - Subnet
+   - Security Groups
+   - EC2 instance running k3s
+
+2. Platform layer
+   - cert-manager
+   - ClusterIssuer (Let's Encrypt)
+
+3. Application layer
+   - Rancher deployed via Helm
+
+The deployment flow is intentionally separated because some components require resources created in previous stages (for example Kubernetes CRDs).
 
 ---
 
-## Project layout
+# Repository Structure
 
-```
-terraform/
-├── aws/                      # AWS infra (EC2/VPC/etc.)
-├── kube/                     # generated kubeconfig (k3s.yaml)
-├── stacks/
-│   └── cert-manager/         # cert-manager + CRDs (separate state)
-└── rancher/
-    └── rancher-server/       # ClusterIssuer + Certificate + Rancher + bootstrap (separate state)
-tools/
-└── scripts/
-    └── fetch-kubeconfig.sh   # retrieves k3s kubeconfig from the server
-```
-
-> cert-manager and Rancher are intentionally split into **separate Terraform states**
-> to avoid CRD ordering issues.
+performance-tooling
+│
+├── terraform
+│   ├── aws-root
+│   │   └── Infrastructure provisioning (VPC, EC2, k3s node)
+│   │
+│   ├── addons-root
+│   │   └── Kubernetes addons deployment
+│   │
+│   ├── modules
+│   │   ├── aws-network
+│   │   ├── aws-k3s-node
+│   │   ├── k8s-cert-manager
+│   │   └── k8s-rancher-server
+│   │
+│   └── kube
+│       └── local kubeconfig (generated locally – not committed)
+│
+├── tools
+│   └── helper scripts
+│
+└── README.md
 
 ---
 
-## 1) Provision AWS infrastructure (k3s server)
+# Prerequisites
 
-```bash
-cd terraform/aws
+You need the following tools installed:
+
+- Terraform >= 1.6
+- AWS CLI
+- kubectl
+- Helm
+- SSH client
+
+AWS credentials must be configured locally:
+
+aws configure
+
+---
+
+# Deployment Workflow
+
+## 1. Deploy infrastructure
+
+cd terraform/aws-root
+
 terraform init
-terraform apply -var-file=../../env/dev.tfvars
-```
+terraform apply
 
-Terraform outputs include:
-- `public_ip`
-- `rancher_hostname`
+This creates:
 
----
+- VPC
+- Security groups
+- EC2 instance
+- k3s cluster
 
-## 2) Fetch kubeconfig from the k3s server
-
-```bash
-IP=$(terraform output -raw public_ip)
-HOST=$(terraform output -raw rancher_hostname)
-
-../../tools/scripts/fetch-kubeconfig.sh "$IP" ../../terraform/kube/k3s.yaml
-```
-
-Configure kubectl:
-
-```bash
-export KUBECONFIG=../../terraform/kube/k3s.yaml
-kubectl get ns
-```
+It also outputs instructions to retrieve the kubeconfig.
 
 ---
 
-## 3) Install cert-manager (CRDs)
+## 2. Retrieve kubeconfig
 
-```bash
-cd ../stacks/cert-manager
+scp ubuntu@<public-ip>:/home/ubuntu/k3s.yaml terraform/kube/k3s.yaml
+
+Update the server endpoint inside the kubeconfig to use the public IP.
+
+---
+
+## 3. Deploy platform components
+
+cd terraform/addons-root
+
 terraform init
-terraform apply -var-file=../../../env/dev.tfvars   -var="kubeconfig_path=../kube/k3s.yaml"
-```
+terraform apply
+
+This deploys:
+
+- cert-manager
+- Let's Encrypt ClusterIssuer
+- Rancher via Helm
 
 ---
 
-## 4) Deploy Rancher
+# Access Rancher
 
-```bash
-cd ../../rancher/rancher-server
-terraform init
-terraform apply -var-file=../../../env/dev.tfvars   -var="kubeconfig_path=../../kube/k3s.yaml"   -var="rancher_hostname=${HOST}"
-```
+After deployment, Rancher is available at:
 
-Terraform outputs:
-- `rancher_server_url`
-- `rancher_admin_password` (sensitive)
-- Rancher API tokens (sensitive)
+https://rancher.<public-ip>.nip.io
+
+The initial admin password can be retrieved via Terraform outputs:
+
+terraform output rancher_admin_password
 
 ---
 
-## TLS / Let’s Encrypt
+# Destroy the Environment
 
-### Default: staging
-Staging is used by default to avoid rate limits while iterating.
+To avoid unnecessary AWS costs:
 
-### Switch to production
-
-```bash
-terraform apply -var="letsencrypt_environment=production"
-```
-
-If switching from staging to production, force re-issuance:
-
-```bash
-kubectl -n cattle-system delete certificate rancher-tls
-kubectl -n cattle-system delete secret rancher-tls
-terraform apply -var="letsencrypt_environment=production"
-```
-
----
-
-## Access Rancher
-
-Open:
-
-```
-https://<rancher_hostname>
-```
-
-Admin password:
-
-```bash
-terraform output -raw rancher_admin_password
-```
-
----
-
-## Re-deploy Rancher
-
-```bash
-terraform apply -replace=helm_release.rancher_server
-```
-
----
-
-## Cleanup
-
-Run `terraform destroy` in each Terraform state directory (AWS / cert-manager / rancher-server):
-
-```bash
+cd terraform/aws-root
 terraform destroy
-```
+
+Also ensure that:
+
+- Elastic IPs are released
+- Volumes are removed
+
+---
+
+# Cost Notes
+
+The current configuration uses:
+
+- t3.medium instance
+- ~15–20 GB EBS volume
+
+Running continuously may cost around $30–40 per month.
+
+To reduce costs:
+
+- destroy the environment when not in use
+- avoid leaving instances running overnight
+- remove unused Elastic IPs
+
+---
+
+# Purpose of This Repository
+
+This project is primarily a learning and experimentation environment focused on:
+
+- Terraform modularization
+- Kubernetes bootstrap automation
+- Rancher installation automation
+- cert-manager and TLS workflows
+
+It is not intended for production usage.
+
+---
+
+# License
+
+MIT License
