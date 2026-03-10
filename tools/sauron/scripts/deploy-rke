@@ -1,6 +1,0 @@
-#!/bin/bash
-
-terraform -chdir=/opt/terraform/aws/ init
-terraform -chdir=/opt/terraform/aws/ apply --auto-approve -target="module.rancher_rke"
-
-login

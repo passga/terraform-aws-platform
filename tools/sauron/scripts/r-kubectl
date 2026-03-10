@@ -1,9 +1,0 @@
-#!/bin/bash
-
-KUBE_CONFIG_PATH="/opt/terraform/aws/kube_config_workload.yaml"
-
-
-run_cmd="/usr/local/bin/kubectl --kubeconfig $KUBE_CONFIG_PATH  $@"
-echo "Running command: '$run_cmd'"
-eval "$run_cmd"
-
