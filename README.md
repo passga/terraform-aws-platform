@@ -1,40 +1,48 @@
 
-# Performance Tooling – Rancher on k3s with Terraform
+# performance-tooling
 
-This repository contains a Terraform-based Proof of Concept (PoC) used to deploy a minimal platform stack on AWS:
+performance-tooling is a personal Platform Engineering / DevOps playground used to experiment with
+Terraform, Kubernetes, Rancher and cloud infrastructure on AWS.
 
-- AWS infrastructure
-- k3s Kubernetes cluster
-- cert-manager
-- Rancher
+## Goals
 
-The goal of the project is to experiment with platform engineering workflows and build a reproducible environment for testing Rancher and Kubernetes automation.
+- Provision infrastructure with Terraform
+- Deploy a management Kubernetes cluster
+- Install Rancher as cluster manager
+- Provision downstream workload clusters (RKE2)
+- Add platform services such as Vault
+- Deploy demo workloads consuming platform services
 
----
 
-# Architecture Overview
 
-The stack is provisioned in layers:
+## Current Architecture
 
-1. Infrastructure layer
-   - AWS VPC
-   - Subnet
-   - Security Groups
-   - EC2 instance running k3s
+```text
 
-2. Platform layer
-   - cert-manager
-   - ClusterIssuer (Let's Encrypt)
+AWS
+└── EC2
+└── k3s management cluster
+├── cert-manager
+├── ClusterIssuer
+└── Rancher
+```
 
-3. Application layer
-   - Rancher deployed via Helm
+Future target:
 
-The deployment flow is intentionally separated because some components require resources created in previous stages (for example Kubernetes CRDs).
+```text
 
----
+AWS
+└── Management Cluster (k3s)
+└── Rancher
+└── Downstream Clusters (RKE2)
+├── Vault
+└── Demo workloads
 
-# Repository Structure
+```
 
+## Repository Structure
+
+```text
 performance-tooling
 │
 ├── terraform
@@ -58,123 +66,48 @@ performance-tooling
 │
 └── README.md
 
----
+```
 
-# Prerequisites
 
-You need the following tools installed:
+## Quick Start
 
-- Terraform >= 1.6
-- AWS CLI
-- kubectl
-- Helm
-- SSH client
-
-AWS credentials must be configured locally:
-
-aws configure
-
----
-
-# Deployment Workflow
-
-## 1. Deploy infrastructure
+Provision AWS + k3s
 
 cd terraform/aws-root
-
 terraform init
 terraform apply
 
-This creates:
+Retrieve kubeconfig
 
-- VPC
-- Security groups
-- EC2 instance
-- k3s cluster
+./tools/scripts/fetch-kubeconfig.sh
 
-It also outputs instructions to retrieve the kubeconfig.
+Install cert-manager
 
----
+cd terraform/platform/platform-cert-manager-root
+terraform apply
 
-## 2. Retrieve kubeconfig
+Create ClusterIssuer
 
-scp ubuntu@<public-ip>:/home/ubuntu/k3s.yaml terraform/kube/k3s.yaml
+cd terraform/platform/platform-issuer-root
+terraform apply
 
-Update the server endpoint inside the kubeconfig to use the public IP.
-
----
-
-## 3. Deploy platform components
+Install Rancher
 
 cd terraform/addons-root
-
-terraform init
 terraform apply
 
-This deploys:
+---
 
-- cert-manager
-- Let's Encrypt ClusterIssuer
-- Rancher via Helm
+## Roadmap
+
+- Add downstream RKE2 clusters
+- Deploy Vault
+- Demonstrate secret injection
+- Add demo workloads
+- Add observability stack
 
 ---
 
-# Access Rancher
+## Disclaimer
 
-After deployment, Rancher is available at:
-
-https://rancher.<public-ip>.nip.io
-
-The initial admin password can be retrieved via Terraform outputs:
-
-terraform output rancher_admin_password
-
----
-
-# Destroy the Environment
-
-To avoid unnecessary AWS costs:
-
-cd terraform/aws-root
-terraform destroy
-
-Also ensure that:
-
-- Elastic IPs are released
-- Volumes are removed
-
----
-
-# Cost Notes
-
-The current configuration uses:
-
-- t3.medium instance
-- ~15–20 GB EBS volume
-
-Running continuously may cost around $30–40 per month.
-
-To reduce costs:
-
-- destroy the environment when not in use
-- avoid leaving instances running overnight
-- remove unused Elastic IPs
-
----
-
-# Purpose of This Repository
-
-This project is primarily a learning and experimentation environment focused on:
-
-- Terraform modularization
-- Kubernetes bootstrap automation
-- Rancher installation automation
-- cert-manager and TLS workflows
-
-It is not intended for production usage.
-
----
-
-# License
-
-MIT License
+This repository is a learning and experimentation project and not production ready.
