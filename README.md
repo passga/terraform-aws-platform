@@ -1,56 +1,83 @@
-
 # performance-tooling
 
-performance-tooling is a personal Platform Engineering / DevOps playground used to experiment with
-Terraform, Kubernetes, Rancher and cloud infrastructure on AWS.
+`performance-tooling` is a personal **Platform Engineering / DevOps playground** used to experiment with:
 
-## Goals
+- Terraform
+- Kubernetes
+- Rancher
+- Cloud infrastructure on AWS
 
-- Provision infrastructure with Terraform
-- Deploy a management Kubernetes cluster
-- Install Rancher as cluster manager
-- Provision downstream workload clusters (RKE2)
-- Add platform services such as Vault
-- Deploy demo workloads consuming platform services
+The goal of this repository is to progressively build a **small but realistic Kubernetes platform stack**.
 
+---
 
+# Why this repository exists
 
-## Current Architecture
+This project is used to experiment with platform engineering concepts such as:
 
-```text
+- infrastructure automation with Terraform
+- Kubernetes cluster lifecycle management
+- multi-cluster management with Rancher
+- platform services such as Vault
+- reproducible infrastructure environments
 
+It serves as a **learning platform and technical sandbox**.
+
+---
+
+# Architecture
+
+## Current architecture
+
+```
 AWS
 └── EC2
-└── k3s management cluster
-├── cert-manager
-├── ClusterIssuer
-└── Rancher
+    └── k3s management cluster
+        ├── cert-manager
+        ├── ClusterIssuer
+        └── Rancher
 ```
 
-Future target:
+The current setup deploys a **lightweight management cluster** running **k3s**.
 
-```text
+This cluster hosts only **platform control components**.
 
+---
+
+## Target architecture
+
+```
 AWS
 └── Management Cluster (k3s)
-└── Rancher
-└── Downstream Clusters (RKE2)
-├── Vault
-└── Demo workloads
-
+      └── Rancher
+            └── Downstream Clusters (RKE2)
+                  ├── Vault
+                  └── Demo workloads
 ```
 
-## Repository Structure
+Future steps will introduce **downstream clusters managed by Rancher**.
 
-```text
+Workloads and platform services will run on those clusters.
+
+---
+
+# Repository Structure
+
+```
 performance-tooling
-│
 ├── terraform
 │   ├── aws-root
-│   │   └── Infrastructure provisioning (VPC, EC2, k3s node)
+│   │   └── AWS infrastructure provisioning (VPC, EC2, k3s node)
 │   │
 │   ├── addons-root
-│   │   └── Kubernetes addons deployment
+│   │   └── Kubernetes addons deployment (Rancher installation)
+│   │
+│   ├── platform
+│   │   ├── platform-cert-manager-root
+│   │   │   └── cert-manager installation
+│   │   │
+│   │   └── platform-issuer-root
+│   │       └── ClusterIssuer creation
 │   │
 │   ├── modules
 │   │   ├── aws-network
@@ -59,55 +86,91 @@ performance-tooling
 │   │   └── k8s-rancher-server
 │   │
 │   └── kube
-│       └── local kubeconfig (generated locally – not committed)
+│       └── generated kubeconfig (not committed)
 │
 ├── tools
 │   └── helper scripts
 │
 └── README.md
-
 ```
 
+Terraform is intentionally split into **multiple roots** to handle bootstrap constraints such as:
 
-## Quick Start
+- kubeconfig generation
+- Kubernetes API availability
+- CRD dependencies
+- platform component ordering
 
-Provision AWS + k3s
+---
 
+# Current Stack
+
+The repository currently provisions:
+
+- AWS networking
+- EC2 instance running **k3s**
+- kubeconfig retrieval
+- **cert-manager**
+- **Let's Encrypt ClusterIssuer**
+- **Rancher Server**
+
+This environment acts as the **platform management cluster**.
+
+---
+
+# Quick Start
+
+## 1. Provision infrastructure
+
+```
 cd terraform/aws-root
 terraform init
 terraform apply
+```
 
-Retrieve kubeconfig
+## 2. Retrieve kubeconfig
 
+```
 ./tools/scripts/fetch-kubeconfig.sh
+```
 
-Install cert-manager
+## 3. Install cert-manager
 
+```
 cd terraform/platform/platform-cert-manager-root
 terraform apply
+```
 
-Create ClusterIssuer
+## 4. Create ClusterIssuer
 
+```
 cd terraform/platform/platform-issuer-root
 terraform apply
+```
 
-Install Rancher
+## 5. Install Rancher
 
+```
 cd terraform/addons-root
 terraform apply
+```
+
+Once deployed, Rancher UI becomes available.
 
 ---
 
-## Roadmap
+# Roadmap
 
-- Add downstream RKE2 clusters
-- Deploy Vault
-- Demonstrate secret injection
-- Add demo workloads
-- Add observability stack
+Next improvements planned:
+
+- Provision **downstream RKE2 clusters via Rancher**
+- Deploy **Hashicorp Vault**
+- Demonstrate **secret injection into Kubernetes workloads**
+- Add **demo applications**
+- Add **observability stack (Prometheus / Grafana)**
 
 ---
 
-## Disclaimer
+# Disclaimer
 
-This repository is a learning and experimentation project and not production ready.
+This repository is a **learning and experimentation project** and is **not production-ready infrastructure**.
