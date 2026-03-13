@@ -4,37 +4,10 @@ resource "kubernetes_namespace" "cattle_system" {
 }
 
 
-resource "kubernetes_manifest" "rancher_certificate" {
-  depends_on = [
-    kubernetes_namespace.cattle_system
-   ]
 
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "Certificate"
-
-    metadata = {
-      name      = "rancher-tls"
-      namespace = "cattle-system"
-    }
-
-    spec = {
-      secretName = "rancher-tls"
-      issuerRef = {
-        name = local.le_name
-        kind = "ClusterIssuer"
-      }
-      dnsNames = [var.rancher_hostname]
-    }
-  }
-}
 
 # Install Rancher helm chart
 resource "helm_release" "rancher_server" {
-  depends_on = [
-    kubernetes_manifest.rancher_certificate
-  ]
-
   repository       = "https://releases.rancher.com/server-charts/latest"
   name             = "rancher"
   chart            = "rancher"
@@ -62,11 +35,11 @@ resource "helm_release" "rancher_server" {
       name  = "ingress.ingressClassName"
       value = "traefik"
     },
-    # Use a public, trusted TLS cert (no insecure flags needed)
-    { name = "ingress.tls.source", value = "secret" },
-    { name = "ingress.tls.secretName", value = "rancher-tls" }
-
-
+    { name = "ingress.tls.source", value = "letsEncrypt" },
+    { name = "letsEncrypt.email", value = var.letsencrypt_email },
+    { name = "letsEncrypt.environment", value = var.letsencrypt_environment },
+    { name = "letsEncrypt.ingress.class", value = "traefik" },
+    { name = "agentTLSMode", value = "system-store" }
   ]
 }
 
@@ -96,9 +69,8 @@ EOT
 
 resource "rancher2_bootstrap" "bootstrap" {
   depends_on = [null_resource.wait_rancher_pong]
-  provider = rancher2
+  provider   = rancher2
   # premier bootstrap : initial_password est généralement "admin"
   initial_password = random_password.rancher_admin.result
   password         = random_password.rancher_admin.result
 }
-

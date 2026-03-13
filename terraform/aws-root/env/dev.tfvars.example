@@ -1,0 +1,18 @@
+# AWS + k3s host for Rancher
+prefix            = "perf"
+aws_region        = "eu-west-3"
+availability_zone = "eu-west-3a"
+
+# Access to the EC2 host and exposed services
+admin_cidr = "X.X.X.X/32"
+
+# Existing EC2 key pair and matching private key path on your machine
+ssh_key_name    = "your-ec2-keypair-name"
+ssh_private_key = "/home/you/.ssh/your-ec2-keypair"
+
+# Optional: expose HTTP for ACME HTTP-01
+allow_http_01 = true
+http_01_cidr  = "0.0.0.0/0"
+
+# Optional: pin k3s version
+k3s_version = "v1.29.4+k3s1"

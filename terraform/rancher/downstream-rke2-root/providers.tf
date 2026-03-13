@@ -1,5 +1,5 @@
 provider "aws" {
-  region = data.terraform_remote_state.aws_root.outputs.aws_region
+  region = local.aws_region
 }
 
 provider "rancher2" {

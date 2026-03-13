@@ -8,21 +8,22 @@ resource "local_sensitive_file" "kube_config_workload_yaml" {
 
 locals {
   control_plane_pool = {
-    name                = "${var.prefix}-control-plane"
-    quantity            = 1
-    control_plane_role  = true
-    etcd_role           = true
-    worker_role         = false
+    name               = "${var.prefix}-control-plane"
+    quantity           = var.control_plane_quantity
+    control_plane_role = true
+    etcd_role          = true
+    worker_role        = false
   }
 
   worker_pool = {
-    name                = "${var.prefix}-worker"
-    quantity            = 1
-    control_plane_role  = false
-    etcd_role           = false
-    worker_role         = true
+    name               = "${var.prefix}-worker"
+    quantity           = var.worker_quantity
+    control_plane_role = false
+    etcd_role          = false
+    worker_role        = true
   }
 
   rke_network_plugin = var.windows_prefered_cluster ? "flannel" : "canal"
-
+  aws_zone_suffix    = trimprefix(var.aws_zone, var.aws_region)
 }
+

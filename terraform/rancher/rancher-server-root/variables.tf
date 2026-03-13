@@ -22,6 +22,11 @@ variable "rancher_bootstrap_insecure" {
   default     = true
 }
 
+variable "letsencrypt_email" {
+  type        = string
+  description = "Email address used for Let's Encrypt ACME registration."
+}
+
 variable "letsencrypt_environment" {
   type        = string
   description = "Let's Encrypt environment: staging or production."
@@ -31,5 +36,4 @@ variable "letsencrypt_environment" {
     error_message = "letsencrypt_environment must be 'staging' or 'production'."
   }
 }
-
 

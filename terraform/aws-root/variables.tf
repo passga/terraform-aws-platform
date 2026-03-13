@@ -44,6 +44,13 @@ variable "http_01_cidr" {
   default     = "0.0.0.0/0"
 }
 
+variable "k3s_instance_type" {
+  type        = string
+  description = "EC2 instance type for the k3s/Rancher server"
+  default     = "t3.medium"
+}
+
+
 variable "k3s_version" {
   type        = string
   description = "k3s version to install"

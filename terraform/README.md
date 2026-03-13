@@ -1,215 +1,152 @@
- # Rancher on k3s (AWS) — Terraform PoC
+# Terraform Layout
 
-A clean, reproducible Terraform PoC that provisions a **single-node k3s cluster on AWS EC2** and installs **Rancher** on top of it.
+This directory contains the Terraform implementation for the platform described in the repository root README.
 
-The repo is intentionally split into **multiple Terraform roots** to reflect real Terraform constraints (kubeconfig generation, CRD readiness, API readiness).
+It provisions:
+- AWS networking and compute
+- a k3s bootstrap cluster
+- cert-manager and a Let's Encrypt `ClusterIssuer`
+- Rancher installed via Helm
+- a downstream RKE2 cluster provisioned by Rancher on AWS
 
----
+## Architecture
 
-## What this PoC does
-
-- Creates an AWS **VPC + public subnet + IGW + route table**
-- Creates a Security Group with minimal ports:
-  - `22` (SSH) — restricted to your admin CIDR
-  - `443` (Rancher UI) — restricted to your admin CIDR
-  - `6443` (Kubernetes API) — restricted to your admin CIDR
-  - `80` (optional) — for ACME HTTP-01 if you decide to use it
-- Provisions an EC2 instance + **Elastic IP**
-- Installs **k3s** via cloud-init and configures `tls-san` to include the public IP
-- Fetches kubeconfig locally (Terraform `local-exec`)
-- Installs **cert-manager** (Helm) in a dedicated root (platform-style)
-- Creates a **ClusterIssuer** (Let’s Encrypt) in a dedicated root
-- Installs **Rancher** (Helm) + bootstraps admin credentials via the `rancher2` provider
-
----
-
-## Repository layout
-
-```
+```text
 terraform/
-  aws-root/                       # AWS + EC2 + k3s + fetch kubeconfig
-  addons-root/                    # Rancher install + bootstrap (uses existing cert-manager + issuer)
-  platform/
-    platform-cert-manager-root/   # cert-manager installation (Helm)
-    platform-issuer-root/         # ClusterIssuer creation (kubernetes_manifest)
-  modules/
-    aws-network/                  # VPC, subnet, routes, SG
-    aws-k3s-node/                 # EC2 + EIP + cloud-init (k3s)
-    k8s-cert-manager/             # cert-manager Helm release
-    k8s-rancher-server/           # Rancher Helm release + rancher2_bootstrap
-  kube/                           # generated kubeconfig (should not be committed)
+├── aws-root/                          # AWS network + k3s bootstrap node
+├── platform/platform-cert-manager-root/ # cert-manager installation
+├── platform/platform-issuer-root/       # Let's Encrypt ClusterIssuer
+├── rancher/rancher-server-root/         # Rancher installation and bootstrap
+├── rancher/downstream-rke2-root/        # Downstream RKE2 cluster provisioning
+└── modules/                             # Reusable Terraform modules
 ```
 
----
+The Terraform code is intentionally split into multiple roots because infrastructure provisioning, kubeconfig generation, CRD installation, Helm releases, Rancher bootstrap, and downstream cluster creation cannot be applied reliably in a single step.
+
+## Provisioning Flow
+
+1. `aws-root` creates the VPC, subnet, security group, EC2 bootstrap node, and fetches the k3s kubeconfig.
+2. `platform-cert-manager-root` installs cert-manager into the bootstrap cluster.
+3. `platform-issuer-root` creates the Let's Encrypt `ClusterIssuer`.
+4. `rancher-server-root` installs Rancher on k3s and bootstraps API access.
+5. `downstream-rke2-root` connects to Rancher and provisions the downstream RKE2 cluster on AWS.
+
+## Root Responsibilities
+
+### `aws-root`
+
+Creates the base AWS infrastructure and bootstrap cluster:
+- VPC, subnet, route table, internet access
+- security group rules for SSH, HTTPS, Kubernetes API, and optional HTTP-01
+- EC2 instance for k3s
+- kubeconfig retrieval for later Terraform stages
+
+### `platform/platform-cert-manager-root`
+
+Installs cert-manager into the bootstrap cluster using the Helm provider.
+
+### `platform/platform-issuer-root`
+
+Creates the Let's Encrypt `ClusterIssuer` used for Rancher ingress TLS.
+
+### `rancher/rancher-server-root`
+
+Installs Rancher with Helm on the k3s cluster and bootstraps Rancher credentials and API access.
+
+### `rancher/downstream-rke2-root`
+
+Uses the Rancher API to:
+- create or reuse an AWS cloud credential
+- define EC2 machine configuration
+- provision control plane and worker machine pools
+- create the downstream RKE2 cluster
 
 ## Prerequisites
 
 - Terraform `>= 1.6`
-- `kubectl`
-- SSH keypair in AWS (EC2 Key Pair)
-- AWS credentials configured via one of:
-  - `AWS_PROFILE=...` (recommended)
-  - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+- AWS credentials with permissions to create networking and EC2 resources
+- an existing EC2 key pair and its private key for bootstrap SSH access
+- `kubectl`, `scp`, and standard shell tooling available locally
+- a Rancher hostname reachable from the internet, typically using `nip.io` for demos
+- inbound port `80` open when using Let's Encrypt HTTP-01
 
-> This PoC does **not** require `helm` installed locally (Terraform uses the Helm provider).
+## AWS Authentication
 
----
+There are two separate AWS authentication concerns in this Terraform layout.
 
-## Quick start
+### 1. Terraform access to AWS
 
-### 0) Create a local vars file
+The `aws-root` and other AWS-backed Terraform resources use the standard AWS provider credential chain. A common local setup is:
 
-Create **one vars file per root** (recommended) or reuse a single file, but keep it simple.
-
-Example for `aws-root` (create `terraform/aws-root/env/dev.tfvars`):
-
-```hcl
-# Naming / region
-prefix            = "perf"
-aws_region        = "eu-west-3"
-availability_zone = "eu-west-3a"
-
-# Access control
-admin_cidr = "X.X.X.X/32"
-
-# EC2 SSH
-ssh_key_name    = "your-ec2-keypair-name"
-ssh_private_key = "/home/you/.ssh/your_key"
-
-# Optional (ACME HTTP-01)
-allow_http_01 = true
-http_01_cidr  = "0.0.0.0/0"
+```bash
+export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
+export AWS_DEFAULT_REGION="eu-west-3"
 ```
 
-Example for `addons-root` (create `terraform/addons-root/env/dev.tfvars`):
+If you are using temporary credentials, also export:
 
-```hcl
-kubeconfig_path   = "../aws-root/kube/k3s.yaml"
-rancher_hostname  = "rancher.<EIP>.nip.io"
-letsencrypt_environment = "staging" # or "production"
-
-# Only for bootstrap if TLS is not trusted yet
-rancher_bootstrap_insecure = true
+```bash
+export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"
 ```
 
-Example for `platform/platform-issuer-root` (create `terraform/platform/platform-issuer-root/env/dev.tfvars`):
+You can also authenticate with `AWS_PROFILE` if you use `~/.aws/credentials`.
 
-```hcl
-kubeconfig_path      = "../../aws-root/kube/k3s.yaml"
-letsencrypt_email    = "you@example.com"
-letsencrypt_environment = "staging" # or "production"
-```
+### 2. Rancher machine provisioning on AWS
 
----
+The downstream RKE2 cluster is created by Rancher, so Rancher also needs AWS credentials for EC2 machine provisioning. In `rancher/downstream-rke2-root`, use one of these options:
+- set `cloud_credential_id` to reuse an existing Rancher cloud credential
+- or set `access_key` and `secret_key` in `env/dev.tfvars`
 
-### 1) Provision AWS + k3s and fetch kubeconfig
+## How To Deploy
+
+Use the example `env/dev.tfvars.example` files in each root as templates.
 
 ```bash
 cd terraform/aws-root
 terraform init
-terraform apply -auto-approve -var-file=./env/dev.tfvars
-```
+terraform apply -var-file=env/dev.tfvars
 
-Outputs include the public IP. The root also fetches kubeconfig to:
-
-- `terraform/aws-root/kube/k3s.yaml`
-
-Validate:
-
-```bash
-kubectl --kubeconfig terraform/aws-root/kube/k3s.yaml get nodes
-```
-
----
-
-### 2) Install cert-manager
-
-```bash
-cd terraform/platform/platform-cert-manager-root
+cd ../platform/platform-cert-manager-root
 terraform init
-terraform apply -auto-approve -var-file=./env/dev.tfvars
-```
+terraform apply -var-file=env/dev.tfvars
 
-Check CRDs:
-
-```bash
-kubectl --kubeconfig terraform/aws-root/kube/k3s.yaml get crd | grep cert-manager | head
-```
-
----
-
-### 3) Create the ClusterIssuer
-
-```bash
-cd terraform/platform/platform-issuer-root
+cd ../platform-issuer-root
 terraform init
-terraform apply -auto-approve -var-file=./env/dev.tfvars
-```
+terraform apply -var-file=env/dev.tfvars
 
----
-
-### 4) Install Rancher + bootstrap
-
-```bash
-cd terraform/addons-root
+cd ../../rancher/rancher-server-root
 terraform init
-terraform apply -auto-approve -var-file=./env/dev.tfvars
+terraform apply -var-file=env/dev.tfvars
+
+cd ../downstream-rke2-root
+terraform init
+terraform apply -var-file=env/dev.tfvars
 ```
 
-Get the generated admin password:
-
-```bash
-terraform output -raw rancher_admin_password
-```
-
-Open:
-
-- `https://<rancher_hostname>`
-
----
-
-## Notes and common pitfalls
-
-
-### TLS readiness
-
-If Rancher bootstrap fails with x509 errors, it is almost always one of:
-
-- `rancher-tls` secret does not exist yet
-- Traefik is serving a default cert (`*.traefik.default`) because the secret is missing
-- you are still on Let’s Encrypt *staging* (trusted but different chain handling on some clients)
-
-Your bootstrap flow should either:
-
-- wait until the TLS secret exists and `curl https://<host>/ping` works **without** `-k`, or
-- temporarily allow insecure bootstrap (`rancher_bootstrap_insecure=true`) and later turn it off
-
----
-
-## Cleanup
+## How To Destroy
 
 Destroy in reverse order:
 
 ```bash
-cd terraform/addons-root && terraform destroy -auto-approve -var-file=./env/dev.tfvars
-cd terraform/platform/platform-issuer-root && terraform destroy -auto-approve -var-file=./env/dev.tfvars
-cd terraform/platform/platform-cert-manager-root && terraform destroy -auto-approve -var-file=./env/dev.tfvars
-cd terraform/aws-root && terraform destroy -auto-approve -var-file=./env/dev.tfvars
+cd terraform/rancher/downstream-rke2-root
+terraform destroy -var-file=env/dev.tfvars
+
+cd ../rancher-server-root
+terraform destroy -var-file=env/dev.tfvars
+
+cd ../../platform/platform-issuer-root
+terraform destroy -var-file=env/dev.tfvars
+
+cd ../platform-cert-manager-root
+terraform destroy -var-file=env/dev.tfvars
+
+cd ../../aws-root
+terraform destroy -var-file=env/dev.tfvars
 ```
 
----
+## Notes
 
-## What to keep out of git
-
-Do **not** commit:
-
-- `**/.terraform/`
-- `**/terraform.tfstate*`
-- any kubeconfig (`**/kube/*.yaml`)
-- any `.tfvars` with secrets
-
----
-
-## License
-
-PoC / educational.
+- Some roots consume local Terraform remote state from earlier stages, especially `aws-root` and `rancher-server-root`.
+- `downstream-rke2-root` can either reuse AWS network outputs from `aws-root` or accept dedicated AWS network values.
+- Do not commit `.terraform/`, `terraform.tfstate*`, kubeconfig files, or secret-bearing `.tfvars` files.

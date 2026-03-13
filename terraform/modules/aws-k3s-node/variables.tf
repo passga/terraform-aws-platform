@@ -9,22 +9,6 @@ variable "sg_id" {
   description = "Security group ID where the k3s node will be deployed"
 }
 
-variable "vpc_id" {
-  type        = string
-  description = "VPC ID where the k3s node will be deployed"
-}
-
-variable "aws_region" {
-  type        = string
-  description = "AWS region used for all resources"
-  default     = "eu-west-3"
-}
-
-variable "availability_zone" {
-  type        = string
-  description = "AWS availability zone"
-  default     = "eu-west-3a"
-}
 
 variable "prefix" {
   type        = string

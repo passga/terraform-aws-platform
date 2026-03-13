@@ -1,0 +1,31 @@
+# Cluster naming
+prefix                = "perf"
+workload_cluster_name = "perf-rke2"
+
+# RKE2 / machine settings
+instance_type               = "t3.large"
+workload_kubernetes_version = "v1.29.4+rke2r1"
+control_plane_quantity      = 1
+worker_quantity             = 1
+cluster_ready_wait_duration = "90s"
+windows_prefered_cluster    = false
+
+# Rancher server access
+rancher_server_dns = "rancher.<AWS_PUBLIC_IP>.nip.io"
+rancher_insecure   = true
+
+# Choose one credential mode:
+# 1. Reuse an existing Rancher cloud credential:
+# cloud_credential_id = "cattle-global-data:cc-xxxxx"
+#
+# 2. Or create a new Rancher cloud credential from AWS keys:
+access_key = "YOUR_AWS_ACCESS_KEY"
+secret_key = "YOUR_AWS_SECRET_KEY"
+
+# Optional dedicated network for the downstream cluster.
+# Leave all five unset to reuse aws-root remote state instead.
+# aws_region              = "eu-west-3"
+# aws_zone                = "eu-west-3a"
+# aws_vpc_id              = "vpc-xxxxxxxx"
+# aws_subnet_id           = "subnet-xxxxxxxx"
+# ec2_security_group_name = "perf-sg"
