@@ -3,7 +3,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Rancher-green)
 ![Cloud](https://img.shields.io/badge/Cloud-AWS-orange)
 
-# performance-tooling
+# terraform-aws-platform
 
 ## Overview
 
