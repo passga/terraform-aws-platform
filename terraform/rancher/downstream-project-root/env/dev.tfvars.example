@@ -1,0 +1,4 @@
+project_name   = "perf"
+namespace_name = "perf"
+
+rancher_insecure = false

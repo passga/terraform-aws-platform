@@ -18,22 +18,12 @@ variable "rancher_version" {
 
 variable "rancher_bootstrap_insecure" {
   type        = bool
-  description = "Allow insecure TLS only for bootstrap when Rancher uses self-signed certs."
-  default     = true
+  description = "Allow insecure TLS only for readiness/bootstrap checks."
+  default     = false
 }
 
-variable "letsencrypt_email" {
+variable "rancher_bootstrap_wait_timeout" {
   type        = string
-  description = "Email address used for Let's Encrypt ACME registration."
+  description = "Timeout used while waiting for Rancher TLS and API readiness."
+  default     = "20m"
 }
-
-variable "letsencrypt_environment" {
-  type        = string
-  description = "Let's Encrypt environment: staging or production."
-  default     = "staging"
-  validation {
-    condition     = contains(["staging", "production"], var.letsencrypt_environment)
-    error_message = "letsencrypt_environment must be 'staging' or 'production'."
-  }
-}
-

@@ -11,8 +11,7 @@ cluster_ready_wait_duration = "90s"
 windows_prefered_cluster    = false
 
 # Rancher server access
-rancher_server_dns = "rancher.<AWS_PUBLIC_IP>.nip.io"
-rancher_insecure   = true
+rancher_insecure = false
 
 # Choose one credential mode:
 # 1. Reuse an existing Rancher cloud credential:

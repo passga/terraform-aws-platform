@@ -14,9 +14,10 @@ The platform automatically provisions:
 - AWS infrastructure (VPC, security groups, EC2 instances)
 - a bootstrap Kubernetes cluster using k3s
 - Rancher installed via Helm
-- TLS certificates via cert-manager and Let's Encrypt
+- Rancher ingress TLS via cert-manager and Let's Encrypt
 - a downstream RKE2 Kubernetes cluster
 - control plane and worker nodes managed by Rancher machine pools
+- Rancher project and namespace resources after the downstream cluster is ready
 
 The goal is to demonstrate a reproducible platform engineering workflow using Infrastructure as Code.
 
@@ -72,10 +73,11 @@ Example of the Rancher-managed downstream RKE2 cluster created by this project.
 1. Terraform provisions AWS networking and an EC2 instance for the bootstrap management node.
 2. The bootstrap node installs k3s and exposes a kubeconfig for follow-up Terraform stages.
 3. Terraform installs cert-manager into the k3s cluster.
-4. Terraform creates a Let's Encrypt `ClusterIssuer` for Rancher ingress TLS.
-5. Terraform installs Rancher on the k3s cluster via Helm.
+4. Terraform creates a Let's Encrypt production `ClusterIssuer`.
+5. Terraform creates the Rancher TLS `Certificate`, installs the Rancher Helm chart with `ingress.tls.source=secret`, waits for trusted API readiness, and bootstraps Rancher.
 6. Terraform connects to the Rancher API, configures machine provisioning, and requests a downstream cluster.
-7. Rancher provisions EC2 instances and installs RKE2 agents and servers to form the downstream Kubernetes cluster.
+7. Terraform waits until the downstream cluster is ready in both the provisioning and management APIs.
+8. Terraform creates Rancher project and namespace resources only after the downstream cluster is fully ready.
 
 ## Repository Layout
 
@@ -86,6 +88,7 @@ terraform/
 ├── platform/platform-issuer-root/       # Let's Encrypt ClusterIssuer
 ├── rancher/rancher-server-root/         # Rancher installation and bootstrap
 ├── rancher/downstream-rke2-root/        # Downstream RKE2 cluster provisioning
+├── rancher/downstream-project-root/     # Rancher project + namespace after cluster readiness
 └── modules/                             # Reusable Terraform modules
 ```
 
@@ -166,13 +169,24 @@ terraform init
 terraform apply -var-file=env/dev.tfvars
 ```
 
-The result is a Rancher-managed downstream RKE2 cluster with configurable control plane and worker node counts.
+### 6. Create Rancher project and namespace
+
+```bash
+cd terraform/rancher/downstream-project-root
+terraform init
+terraform apply -var-file=env/dev.tfvars
+```
+
+The result is a Rancher-managed downstream RKE2 cluster with project and namespace resources created only after the cluster is actually ready.
 
 ## How To Destroy The Infrastructure
 
 Destroy in reverse order to avoid dependency and remote-state issues.
 
 ```bash
+cd terraform/rancher/downstream-project-root
+terraform destroy -var-file=env/dev.tfvars
+
 cd terraform/rancher/downstream-rke2-root
 terraform destroy -var-file=env/dev.tfvars
 
@@ -192,7 +206,10 @@ terraform destroy -var-file=env/dev.tfvars
 ## Notes
 
 - Terraform roots are intentionally separated to handle bootstrap sequencing cleanly.
+- Rancher TLS is managed by cert-manager. The Rancher Helm chart consumes a pre-created secret and does not manage Let's Encrypt itself.
 - The downstream cluster can either reuse AWS network data from `aws-root` remote state or accept dedicated AWS networking values.
+- `rancher-server-root` waits for the cert-manager `Certificate`, trusted HTTPS, and a successful bootstrap login before `rancher2_bootstrap`.
+- `downstream-rke2-root` creates only the Rancher cloud credential and `rancher2_cluster_v2`; project and namespace creation lives in `downstream-project-root`.
 - This repository is designed as a practical platform engineering portfolio project rather than production-ready infrastructure.
 
 
@@ -224,26 +241,9 @@ If the certificate chain cannot be validated, node registration may fail with er
 curl: (60) SSL certificate problem: unable to get local issuer certificate
 ```
 
-### Let's Encrypt Staging vs Production
+### Why Production Certificates Matter
 
-The Rancher Helm chart allows selecting the Let's Encrypt environment:
-
-```
-letsEncrypt.environment = "staging"
-letsEncrypt.environment = "production"
-```
-
-- **staging**
-    - useful for testing
-    - certificates are not trusted by default by most systems
-    - avoids Let's Encrypt rate limits
-
-- **production**
-    - trusted public certificates
-    - required for reliable downstream node registration
-
-In practice, downstream RKE2 nodes must be able to validate the Rancher TLS chain.
-Using **Let's Encrypt production certificates ensures the CA is trusted by the system trust store**.
+For the full Rancher-to-RKE2 registration flow, downstream nodes must trust the Rancher endpoint with the OS trust store. Let's Encrypt staging certificates are not trusted by default, so this repository uses a Let's Encrypt production `ClusterIssuer` for the complete join flow.
 
 ### Verifying Rancher TLS
 

@@ -74,10 +74,6 @@ variable "cluster_ready_wait_duration" {
   default = "600s"
 }
 
-variable "rancher_server_dns" {
-  type = string
-}
-
 variable "rancher_insecure" {
   type    = bool
   default = false

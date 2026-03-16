@@ -14,24 +14,19 @@ variable "rancher_version" {
   default     = "v2.13.2"
 }
 
-variable "letsencrypt_email" {
+variable "rancher_tls_cluster_issuer_name" {
   type        = string
-  description = "Email address used for Let's Encrypt ACME registration."
-}
-
-
-variable "letsencrypt_environment" {
-  type        = string
-  description = "Let's Encrypt environment: staging or production."
-  default     = "staging"
-  validation {
-    condition     = contains(["staging", "production"], var.letsencrypt_environment)
-    error_message = "letsencrypt_environment must be 'staging' or 'production'."
-  }
+  description = "ClusterIssuer name used by cert-manager to issue the Rancher ingress certificate."
 }
 
 variable "rancher_bootstrap_insecure" {
   type        = bool
-  description = "Allow insecure TLS only for bootstrap when Rancher uses self-signed certs."
-  default     = true
+  description = "Allow insecure TLS only for readiness/bootstrap checks."
+  default     = false
+}
+
+variable "rancher_bootstrap_wait_timeout" {
+  type        = string
+  description = "Timeout used while waiting for Rancher TLS and API readiness."
+  default     = "20m"
 }
