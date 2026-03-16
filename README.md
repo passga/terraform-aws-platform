@@ -195,6 +195,100 @@ terraform destroy -var-file=env/dev.tfvars
 - The downstream cluster can either reuse AWS network data from `aws-root` remote state or accept dedicated AWS networking values.
 - This repository is designed as a practical platform engineering portfolio project rather than production-ready infrastructure.
 
+
+## TLS and Let's Encrypt Considerations
+
+Rancher is exposed through an ingress secured with TLS certificates issued by **Let's Encrypt** via **cert-manager**.
+
+During startup, the ingress controller (Traefik) initially serves a temporary self-signed certificate:
+
+```
+TRAEFIK DEFAULT CERT
+```
+
+This certificate is used until cert-manager successfully obtains a valid certificate from Let's Encrypt and attaches it to the Rancher ingress.
+
+### Important for Downstream RKE2 Nodes
+
+When Rancher provisions downstream RKE2 nodes, those nodes must connect back to the Rancher server over HTTPS to register themselves.
+
+For this to succeed:
+
+- the Rancher certificate must be issued
+- the certificate must be served by the ingress
+- the certificate must be signed by a CA trusted by the node OS
+
+If the certificate chain cannot be validated, node registration may fail with errors such as:
+
+```
+curl: (60) SSL certificate problem: unable to get local issuer certificate
+```
+
+### Let's Encrypt Staging vs Production
+
+The Rancher Helm chart allows selecting the Let's Encrypt environment:
+
+```
+letsEncrypt.environment = "staging"
+letsEncrypt.environment = "production"
+```
+
+- **staging**
+    - useful for testing
+    - certificates are not trusted by default by most systems
+    - avoids Let's Encrypt rate limits
+
+- **production**
+    - trusted public certificates
+    - required for reliable downstream node registration
+
+In practice, downstream RKE2 nodes must be able to validate the Rancher TLS chain.
+Using **Let's Encrypt production certificates ensures the CA is trusted by the system trust store**.
+
+### Verifying Rancher TLS
+
+Check the certificate served by Rancher:
+
+```bash
+echo | openssl s_client -connect rancher.<ip>.nip.io:443 -servername rancher.<ip>.nip.io 2>/dev/null | openssl x509 -noout -issuer -subject -dates
+```
+
+Example expected output:
+
+```
+issuer=C = US, O = Let's Encrypt, CN = R3
+subject=CN = rancher.<ip>.nip.io
+```
+
+### Checking Certificate Status in Kubernetes
+
+Verify that cert-manager successfully issued the certificate:
+
+```bash
+kubectl -n cattle-system get certificate
+```
+
+Expected:
+
+```
+NAME                  READY   SECRET
+tls-rancher-ingress   True    tls-rancher-ingress
+```
+
+You can also inspect details:
+
+```bash
+kubectl -n cattle-system describe issuer rancher
+kubectl -n cattle-system describe certificate tls-rancher-ingress
+```
+
+### Key Takeaway
+
+Even if the Rancher API responds successfully (for example `/ping` returns `pong`), downstream cluster provisioning may still fail if the TLS certificate chain is not trusted by the nodes.
+
+Ensuring a valid and trusted TLS certificate for Rancher is therefore a critical step in the provisioning workflow.
+
+
 ## Disclaimer
 
 This repository is a **learning and experimentation project** designed to demonstrate a platform engineering workflow using Terraform, Rancher, and RKE2.
