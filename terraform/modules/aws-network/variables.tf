@@ -1,7 +1,7 @@
 variable "prefix" {
   type        = string
   description = "Prefix added to names of all resources"
-  default     = "perf"
+  default     = "demo"
 }
 
 variable "admin_cidr" {

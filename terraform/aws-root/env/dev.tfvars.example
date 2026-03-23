@@ -1,5 +1,5 @@
 # AWS + k3s host for Rancher
-prefix            = "perf"
+prefix            = "demo"
 aws_region        = "eu-west-3"
 availability_zone = "eu-west-3a"
 

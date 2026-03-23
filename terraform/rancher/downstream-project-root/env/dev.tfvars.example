@@ -1,4 +1,4 @@
-project_name   = "perf"
-namespace_name = "perf"
+project_name   = "demo"
+namespace_name = "demo"
 
 rancher_insecure = false

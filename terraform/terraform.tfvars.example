@@ -7,7 +7,7 @@ aws_secret_key     = ""
 aws_session_token  = ""
 
 # EC2 keypair name (must exist in the target AWS region)
-ssh_key_name = "perf-env-keypair"
+ssh_key_name = "example-platform-keypair"
 
-# Security group name for the perf environment
-ec2_security_group_name = "sg_perf-environment"
+# Security group name for the example environment
+ec2_security_group_name = "sg-example-platform"
