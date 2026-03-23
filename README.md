@@ -97,7 +97,7 @@ terraform/
 - Terraform `>= 1.6`
 - AWS account and credentials with permission to create VPC, security groups, and EC2 resources
 - An existing EC2 key pair and access to its private key for bootstrap SSH
-- `kubectl`, `helm`, and `scp` available on the operator machine
+- `kubectl`, `helm`, `jq`, and `scp` available on the operator machine
 - A public DNS name for Rancher, or a dynamic hostname such as `nip.io`
 - Port `80` reachable for Let's Encrypt HTTP-01 validation when using automatic TLS
 
@@ -208,8 +208,10 @@ terraform destroy -var-file=env/dev.tfvars
 - Terraform roots are intentionally separated to handle bootstrap sequencing cleanly.
 - Rancher TLS is managed by cert-manager. The Rancher Helm chart consumes a pre-created secret and does not manage Let's Encrypt itself.
 - The downstream cluster can either reuse AWS network data from `aws-root` remote state or accept dedicated AWS networking values.
-- `rancher-server-root` waits for the cert-manager `Certificate`, trusted HTTPS, and a successful bootstrap login before `rancher2_bootstrap`.
+- `rancher-server-root` waits for Rancher readiness before `rancher2_bootstrap`.
+  This readiness check includes certificate readiness, API availability, and bootstrap login validation.
 - `downstream-rke2-root` creates only the Rancher cloud credential and `rancher2_cluster_v2`; project and namespace creation lives in `downstream-project-root`.
+  Cluster readiness checks include provisioning `Ready`, provisioning `Connected`, and management state `active`.
 - This repository is designed as a practical platform engineering portfolio project rather than production-ready infrastructure.
 
 

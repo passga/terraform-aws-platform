@@ -40,29 +40,16 @@ while (( SECONDS < deadline )); do
     continue
   fi
 
-  if PROVISIONING_PAYLOAD="${provisioning_payload}" MANAGEMENT_PAYLOAD="${management_payload}" python3 - <<'PY'
-import json
-import os
-import sys
-
-provisioning = json.loads(os.environ["PROVISIONING_PAYLOAD"])
-management = json.loads(os.environ["MANAGEMENT_PAYLOAD"])
-
-conditions = provisioning.get("status", {}).get("conditions", [])
-ready = next((item.get("status", "False") for item in conditions if item.get("type") == "Ready"), "False")
-connected = next((item.get("status", "False") for item in conditions if item.get("type") == "Connected"), "False")
-state = management.get("state", "")
-
-if ready == "True" and connected == "True" and state == "active":
-    raise SystemExit(0)
-
-print(f"provisioning_ready={ready} provisioning_connected={connected} management_state={state}")
-raise SystemExit(1)
-PY
+  if ready="$(jq -r 'first(.status.conditions[]? | select(.type == "Ready") | .status) // "False"' <<< "${provisioning_payload}")" \
+    && connected="$(jq -r 'first(.status.conditions[]? | select(.type == "Connected") | .status) // "False"' <<< "${provisioning_payload}")" \
+    && state="$(jq -r '.state // ""' <<< "${management_payload}")" \
+    && [[ "${ready}" == "True" && "${connected}" == "True" && "${state}" == "active" ]]
   then
     echo "Downstream Rancher cluster is ready"
     exit 0
   fi
+
+  echo "provisioning_ready=${ready:-False} provisioning_connected=${connected:-False} management_state=${state:-}"
 
   sleep 15
 done

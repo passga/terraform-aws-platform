@@ -30,7 +30,7 @@ kubectl --kubeconfig "${KUBECONFIG_PATH}" -n "${CERT_NAMESPACE}" \
 deadline=$((SECONDS + TIMEOUT_SECONDS))
 
 while (( SECONDS < deadline )); do
-  if ! kubectl --kubeconfig "${KUBECONFIG_PATH}" -n "${CERT_NAMESPACE}" get secret rancher-tls >/dev/null 2>&1; then
+  if ! kubectl --kubeconfig "${KUBECONFIG_PATH}" -n "${CERT_NAMESPACE}" get secret "${CERT_NAME}" >/dev/null 2>&1; then
     echo "TLS secret not created yet"
     sleep 10
     continue
@@ -42,7 +42,10 @@ while (( SECONDS < deadline )); do
     continue
   fi
 
-  login_payload=$(python3 -c 'import json, os; print(json.dumps({"username": "admin", "password": os.environ["RANCHER_BOOTSTRAP_PASSWORD"]}))')
+  login_payload="$(jq -cn \
+    --arg username "admin" \
+    --arg password "${RANCHER_BOOTSTRAP_PASSWORD}" \
+    '{username: $username, password: $password}')"
   response_file="$(mktemp)"
   http_code="$(curl "${curl_args[@]}" \
     -H "Content-Type: application/json" \
@@ -53,19 +56,7 @@ while (( SECONDS < deadline )); do
     "${RANCHER_URL}/v3-public/localProviders/local?action=login" || true)"
 
   if [[ "${http_code}" == "201" ]]; then
-    if python3 - "${response_file}" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    payload = json.load(handle)
-
-if payload.get("token"):
-    raise SystemExit(0)
-
-raise SystemExit(1)
-PY
-    then
+    if jq -e '.token | select(type == "string" and length > 0)' "${response_file}" >/dev/null; then
       rm -f "${response_file}"
       echo "Rancher API and bootstrap login are ready"
       exit 0
