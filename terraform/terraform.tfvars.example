@@ -6,12 +6,6 @@ aws_access_key     = ""
 aws_secret_key     = ""
 aws_session_token  = ""
 
-# Rancher server public DNS name (after AWS apply, use the output)
-rancher_server_dns = "ec2-xx-xxx-xx-xx.eu-west-1.compute.amazonaws.com"
-
-# Admin password for Rancher (store securely; do not commit)
-rancher_server_admin_password = "CHANGE_ME"
-
 # EC2 keypair name (must exist in the target AWS region)
 ssh_key_name = "perf-env-keypair"
 

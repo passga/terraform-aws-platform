@@ -4,10 +4,11 @@ kubeconfig_path = "../aws/k3s.yaml"
 # Hostname used by Rancher (e.g. rancher.<EIP>.nip.io)
 rancher_hostname = "rancher.X.X.X.X.nip.io"
 
-# Let's Encrypt settings
-letsencrypt_email = "you@example.com"
-# letsencrypt_environment = "staging" # or "production"
-
 # Optional versions
-# rancher_version = "v2.9.2"
-# cert_manager_version = "1.5.3"
+# rancher_version = "v2.13.2"
+
+# ClusterIssuer already created by platform-issuer-root
+rancher_tls_cluster_issuer_name = "letsencrypt-production"
+
+# The full downstream join flow should use trusted TLS
+rancher_bootstrap_insecure = false

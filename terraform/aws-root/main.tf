@@ -8,13 +8,13 @@ module "network" {
 }
 
 module "k3s_node" {
-  source            = "../modules/aws-k3s-node"
-  subnet_id         = module.network.aws_subnet_id
-  sg_id             = module.network.aws_sg_id
-  prefix            = var.prefix
-  ssh_key_name      = var.ssh_key_name
+  source                 = "../modules/aws-k3s-node"
+  subnet_id              = module.network.aws_subnet_id
+  sg_id                  = module.network.aws_sg_id
+  prefix                 = var.prefix
+  ssh_key_name           = var.ssh_key_name
   k3s_node_instance_type = var.k3s_instance_type
-  k3s_version = var.k3s_version
+  k3s_version            = var.k3s_version
 }
 
 resource "time_sleep" "wait_k3s_ready" {

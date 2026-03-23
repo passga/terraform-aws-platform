@@ -65,7 +65,7 @@ variable "worker_quantity" {
 
 variable "cluster_ready_wait_duration" {
   type        = string
-  description = "Time to wait after Rancher creates the cluster before creating project and namespace resources."
+  description = "Time to wait for the downstream Rancher cluster to become ready."
   default     = "600s"
 }
 

@@ -13,7 +13,7 @@ module "downstream_rke2" {
   control_plane_quantity      = var.control_plane_quantity
   worker_quantity             = var.worker_quantity
   cluster_ready_wait_duration = var.cluster_ready_wait_duration
-  rancher_api_url             = "https://${var.rancher_server_dns}"
+  rancher_api_url             = data.terraform_remote_state.rancher_server.outputs.rancher_server_url
   rancher_api_token           = data.terraform_remote_state.rancher_server.outputs.rancher_server_token
   rancher_insecure            = var.rancher_insecure
   workload_cluster_name       = var.workload_cluster_name
