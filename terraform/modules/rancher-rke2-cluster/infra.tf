@@ -80,7 +80,7 @@ resource "null_resource" "wait_for_cluster_readiness" {
       TIMEOUT_DURATION        = var.cluster_ready_wait_duration
     }
 
-    command = "/bin/bash ${path.root}/../../tools/scripts/wait-for-rancher-cluster.sh"
+    command = "/bin/bash ${path.root}/../../../tools/scripts/wait-for-rancher-cluster.sh"
   }
 }
 

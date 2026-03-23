@@ -38,8 +38,8 @@ resource "kubernetes_manifest" "clusterissuer_letsencrypt" {
     metadata   = { name = local.le_name }
     spec = {
       acme = {
-        email               = var.letsencrypt_email
-        server              = local.le_server_url
+        email  = var.letsencrypt_email
+        server = local.le_server_url
         privateKeySecretRef = { name = "${local.le_name}-account-key" }
         solvers = [{
           http01 = { ingress = { class = "traefik" } }

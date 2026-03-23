@@ -8,7 +8,7 @@ resource "aws_instance" "k3s" {
   vpc_security_group_ids      = [var.sg_id]
   associate_public_ip_address = true
   subnet_id                   = var.subnet_id
-  user_data                   = <<-EOF
+  user_data = <<-EOF
     #!/bin/bash
     set -euxo pipefail
 
@@ -54,7 +54,7 @@ resource "aws_instance" "k3s" {
 }
 
 resource "aws_eip" "k3s" {
-  domain   = "vpc"
+  domain = "vpc"
   instance = aws_instance.k3s.id
   tags = {
     Name = "${var.prefix}-rancher-eip"

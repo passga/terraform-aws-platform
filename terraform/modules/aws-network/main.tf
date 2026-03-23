@@ -65,7 +65,7 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
   count             = var.allow_http_01 ? 1 : 0
-  security_group_id = aws_security_group.main.id
+  security_group_id =  aws_security_group.main.id
   ip_protocol       = "tcp"
   from_port         = 80
   to_port           = 80
@@ -73,7 +73,7 @@ resource "aws_vpc_security_group_ingress_rule" "http" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "k8s_api" {
-  security_group_id = aws_security_group.main.id
+  security_group_id =  aws_security_group.main.id
   ip_protocol       = "tcp"
   from_port         = 6443
   to_port           = 6443

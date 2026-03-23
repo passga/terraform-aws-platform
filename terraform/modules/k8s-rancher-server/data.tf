@@ -16,7 +16,7 @@
 #
 #  part {
 #    content_type = "text/x-shellscript"
-#    content      = templatefile("${path.module}/files/rancher-install.sh", { certmanager_version = local.certmanager_version, rancher_version = local.rancher_version, rancher_hostname = "${local.name}.${local.domain}", install_rancher = local.install_rancher, install_nginx_ingress = local.install_nginx_ingress, install_certmanager = local.install_certmanager })
+#    content      = templatefile("${path.module}/files/rancher-install.sh", { certmanager_version = local.certmanager_version, letsencrypt_email = local.letsencrypt_email, rancher_version = local.rancher_version, rancher_hostname = "${local.name}.${local.domain}", install_rancher = local.install_rancher, install_nginx_ingress = local.install_nginx_ingress, install_certmanager = local.install_certmanager })
 #  }
 #
 #  part {

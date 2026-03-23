@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="terraform-zip">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/terraform-zip.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

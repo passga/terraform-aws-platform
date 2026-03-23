@@ -67,7 +67,8 @@ resource "helm_release" "rancher_server" {
     },
     # Use a public, trusted TLS cert (no insecure flags needed)
     { name = "ingress.tls.source", value = "secret" },
-    { name = "ingress.tls.secretName", value = "rancher-tls" }
+    { name = "ingress.tls.secretName", value = "rancher-tls" },
+    { name = "agentTLSMode", value = "system-store" }
 
 
   ]
@@ -101,7 +102,7 @@ resource "null_resource" "wait_rancher_api" {
       RANCHER_INSECURE           = tostring(var.rancher_bootstrap_insecure)
     }
 
-    command = "/bin/bash ${path.root}/../../tools/scripts/wait-for-rancher.sh"
+    command = "/bin/bash ${path.root}/../../../tools/scripts/wait-for-rancher.sh"
   }
 }
 
