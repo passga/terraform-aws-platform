@@ -2,7 +2,7 @@
 resource "rancher2_cloud_credential" "node" {
   count       = var.cloud_credential_id != null && trimspace(var.cloud_credential_id) != "" ? 0 : 1
   name        = "${var.workload_cluster_name}-node"
-  description = "Terraform cloudCredential performance test"
+  description = "Terraform-managed cloud credential for example infrastructure"
   amazonec2_credential_config {
     access_key = var.access_key
     secret_key = var.secret_key

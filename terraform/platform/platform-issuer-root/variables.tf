@@ -17,5 +17,5 @@ variable "letsencrypt_environment" {
 variable "letsencrypt_email" {
   type        = string
   description = "Email used by Let's Encrypt to issue the Rancher TLS certificate."
-  default     = "pouet@gmail.com"
+  default     = "you@example.com"
 }

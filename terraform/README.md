@@ -123,6 +123,12 @@ For downstream cluster provisioning, Rancher also needs AWS credentials to creat
 - set `cloud_credential_id` to reuse an existing Rancher cloud credential
 - or set `access_key` and `secret_key` in `env/dev.tfvars`
 
+## Security Hygiene
+
+- Do not commit generated files such as `*.tfstate`, `*.tfstate.*`, `env/*.tfvars`, or kubeconfig files.
+- Treat Terraform state, backup state, and kubeconfig files as sensitive because they can contain passwords, API tokens, cloud credentials, cluster registration tokens, and client key material.
+- If you accidentally create those files inside the repository while testing, remove them from the working tree before sharing or publishing the project.
+
 ## How To Deploy
 
 Use the example tfvars files in each Terraform root as the starting point.

@@ -13,7 +13,7 @@ variable "availability_zone" {
 variable "prefix" {
   type        = string
   description = "Prefix added to names of all resources"
-  default     = "perf"
+  default     = "demo"
 }
 
 
@@ -60,5 +60,4 @@ variable "k3s_version" {
 locals {
   admin_cidr_norm = can(cidrnetmask(var.admin_cidr)) ? var.admin_cidr : "${var.admin_cidr}/32"
 }
-
 

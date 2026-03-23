@@ -49,7 +49,7 @@ resource "aws_instance" "k3s" {
 
   tags = {
     Name    = "${var.prefix}-rancher-server"
-    Creator = "rancher-perf-provisioning"
+    Creator = "terraform-aws-platform"
   }
 }
 
@@ -66,6 +66,5 @@ resource "aws_eip_association" "k3s" {
   allocation_id = aws_eip.k3s.id
   depends_on    = [aws_instance.k3s]
 }
-
 
 

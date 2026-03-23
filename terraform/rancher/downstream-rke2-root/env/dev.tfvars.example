@@ -1,6 +1,6 @@
 # Cluster naming
-prefix                = "perf"
-workload_cluster_name = "perf-rke2"
+prefix                = "demo"
+workload_cluster_name = "demo-rke2"
 
 # RKE2 / machine settings
 instance_type               = "t3.large"
@@ -27,4 +27,4 @@ secret_key = "YOUR_AWS_SECRET_KEY"
 # aws_zone                = "eu-west-3a"
 # aws_vpc_id              = "vpc-xxxxxxxx"
 # aws_subnet_id           = "subnet-xxxxxxxx"
-# ec2_security_group_name = "perf-sg"
+# ec2_security_group_name = "demo-sg"
