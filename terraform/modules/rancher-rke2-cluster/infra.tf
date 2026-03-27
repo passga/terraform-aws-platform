@@ -19,7 +19,9 @@ resource "rancher2_cluster_v2" "cluster" {
 
   rke_config {
     machine_global_config = yamlencode({
-      cni = local.rke_network_plugin
+      cni                = local.rke_network_plugin
+      disable            = ["rke2-ingress-nginx"]
+      ingress-controller = "traefik"
     })
 
     machine_pools {

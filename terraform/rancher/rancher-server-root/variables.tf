@@ -11,8 +11,8 @@ variable "rancher_hostname" {
 
 variable "rancher_version" {
   type        = string
-  description = "Rancher Helm chart version (e.g. v2.9.2)."
-  default     = "v2.9.2"
+  description = "Rancher Helm chart version (e.g. v2.14.0)."
+  default     = "v2.14.0"
 }
 
 

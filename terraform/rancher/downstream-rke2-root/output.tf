@@ -9,3 +9,7 @@ output "cluster_name" {
 output "cluster_v1_id" {
   value = module.downstream_rke2.cluster_v1_id
 }
+
+output "kubeconfig_path" {
+  value = module.downstream_rke2.kubeconfig_path
+}

@@ -10,7 +10,7 @@ terraform/kube/*
 **/k3s.yaml
 **/kube/*.yaml
 **/kube/*.yml
-
+**/*kubeconfig.yaml
 # Keys / secrets
 *.pem
 *.key

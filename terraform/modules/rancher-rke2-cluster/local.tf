@@ -1,8 +1,15 @@
 # Local resources
 
+locals {
+  normalized_prefix        = trimspace(var.prefix)
+  cluster_name_has_prefix  = local.normalized_prefix != "" && (var.workload_cluster_name == local.normalized_prefix || startswith(var.workload_cluster_name, "${local.normalized_prefix}-") || endswith(var.workload_cluster_name, "-${local.normalized_prefix}") || strcontains(var.workload_cluster_name, "-${local.normalized_prefix}-"))
+  kubeconfig_filename_base = local.cluster_name_has_prefix || local.normalized_prefix == "" ? var.workload_cluster_name : "${local.normalized_prefix}-${var.workload_cluster_name}"
+  kubeconfig_filename      = "${local.kubeconfig_filename_base}-kubeconfig.yaml"
+}
+
 # Save kubeconfig locally without storing the content in plaintext state.
 resource "local_sensitive_file" "kube_config_workload_yaml" {
-  filename = format("%s/%s", path.root, "kube_config_workload.yaml")
+  filename = format("%s/%s", path.root, local.kubeconfig_filename)
   content  = rancher2_cluster_v2.cluster.kube_config
 }
 
