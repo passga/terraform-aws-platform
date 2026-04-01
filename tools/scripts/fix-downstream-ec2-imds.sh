@@ -52,6 +52,21 @@ metadata_options() {
     --output text
 }
 
+metadata_options_match() {
+  local current="$1"
+  local current_endpoint=""
+  local current_tokens=""
+  local current_hop_limit=""
+  local current_state=""
+
+  read -r current_endpoint current_tokens current_hop_limit current_state <<<"${current}"
+
+  [[ "${current_endpoint}" == "${HTTP_ENDPOINT}" &&
+    "${current_tokens}" == "${HTTP_TOKENS}" &&
+    "${current_hop_limit}" == "${HTTP_PUT_RESPONSE_HOP_LIMIT}" &&
+    "${current_state}" == "applied" ]]
+}
+
 wait_for_metadata_options() {
   local instance_id="$1"
   local attempts=30
@@ -60,7 +75,7 @@ wait_for_metadata_options() {
 
   for ((i = 1; i <= attempts; i++)); do
     current="$(metadata_options "${instance_id}")"
-    if [[ "${current}" == *"${HTTP_ENDPOINT}"* && "${current}" == *"${HTTP_TOKENS}"* && "${current}" == *"${HTTP_PUT_RESPONSE_HOP_LIMIT}"* && "${current}" == *"applied"* ]]; then
+    if metadata_options_match "${current}"; then
       return 0
     fi
     sleep "${sleep_seconds}"
@@ -76,7 +91,7 @@ instance_ids="$(wait_for_instances)"
 for instance_id in ${instance_ids}; do
   current="$(metadata_options "${instance_id}")"
 
-  if [[ "${current}" == *"${HTTP_ENDPOINT}"* && "${current}" == *"${HTTP_TOKENS}"* && "${current}" == *"${HTTP_PUT_RESPONSE_HOP_LIMIT}"* && "${current}" == *"applied"* ]]; then
+  if metadata_options_match "${current}"; then
     continue
   fi
 
