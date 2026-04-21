@@ -1,0 +1,34 @@
+variable "kubeconfig_path" {
+  type        = string
+  description = "Path to the downstream kubeconfig file used by the Kubernetes/Helm providers."
+}
+
+variable "namespace" {
+  type        = string
+  description = "Namespace where Argo CD will be installed."
+  default     = "argocd"
+}
+
+variable "argocd_chart_version" {
+  type        = string
+  description = "Optional Argo CD Helm chart version."
+  default     = null
+  nullable    = true
+}
+
+variable "argocd_hostname" {
+  type        = string
+  description = "Hostname exposed by the Argo CD ingress."
+}
+
+variable "ingress_class_name" {
+  type        = string
+  description = "IngressClass used to expose Argo CD."
+  default     = "nginx"
+}
+
+variable "tls_secret_name" {
+  type        = string
+  description = "TLS secret name used by the Argo CD ingress and certificate."
+  default     = "argocd-server-tls"
+}
