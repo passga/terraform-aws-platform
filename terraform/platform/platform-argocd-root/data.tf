@@ -10,6 +10,6 @@ data "terraform_remote_state" "platform_issuer" {
   backend = "local"
 
   config = {
-    path = "../platform-issuer-root/terraform.tfstate"
+    path = "${path.module}/../platform-issuer-root/terraform.tfstate"
   }
 }
