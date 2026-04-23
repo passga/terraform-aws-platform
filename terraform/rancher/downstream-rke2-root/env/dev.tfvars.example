@@ -11,8 +11,6 @@ cluster_ready_wait_duration = "90s"
 windows_prefered_cluster    = false
 # Existing AWS IAM instance profile name for downstream EC2 nodes. Use the name, never the ARN.
 downstream_node_instance_profile_name = "demo-downstream-nodes"
-# Optional: disable the post-creation cluster-scoped IMDS fix if you manage metadata options outside Terraform.
-# enable_cluster_scoped_imds_fix = true
 
 # Rancher server access
 rancher_insecure = false

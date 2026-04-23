@@ -9,7 +9,6 @@ module "downstream_rke2" {
   aws_subnet_id                         = local.aws_subnet_id
   ec2_security_group_name               = local.ec2_security_group_name
   downstream_node_instance_profile_name = data.aws_iam_instance_profile.downstream_nodes.name
-  enable_cluster_scoped_imds_fix        = var.enable_cluster_scoped_imds_fix
   instance_type                         = var.instance_type
   control_plane_quantity                = var.control_plane_quantity
   worker_quantity                       = var.worker_quantity

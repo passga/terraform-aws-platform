@@ -79,12 +79,6 @@ variable "downstream_node_instance_profile_name" {
   description = "Existing AWS IAM Instance Profile name attached to downstream RKE2 EC2 nodes."
 }
 
-variable "enable_cluster_scoped_imds_fix" {
-  type        = bool
-  description = "Run a post-creation cluster-scoped EC2 IMDS reconciliation step for downstream RKE2 nodes."
-  default     = true
-}
-
 variable "rancher_insecure" {
   type    = bool
   default = false
