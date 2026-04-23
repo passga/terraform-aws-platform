@@ -3,7 +3,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Rancher-green)
 ![Cloud](https://img.shields.io/badge/Cloud-AWS-orange)
 
-# terraform
+# Terraform execution guide
 
 ## Purpose
 
@@ -159,7 +159,7 @@ Validated practical note:
 - when that permission was missing, `rke2-traefik` stayed in `EXTERNAL-IP: pending`
 - the NLB did not complete reconciliation until that permission was available through `infra-dev-rke2-cloud-provider-aws`
 
-## Notes About Downstream Ingress, Traefik, And The NLB
+## Validated Downstream Ingress Path
 
 The validated downstream ingress path is:
 
@@ -176,10 +176,31 @@ Operational notes:
 - do not recreate `kube-system/rke2-traefik` as a separate Terraform-managed `Service`
 - customize Traefik through `HelmChartConfig` named `rke2-traefik`
 - `aws-cloud-controller-manager` is part of the validated downstream cluster path
-- the current validated path does not require any separate controller for this NLB workflow
+- the current validated NLB workflow relies on the AWS cloud provider integration and `aws-cloud-controller-manager` only
 - a `404` from the NLB before any ingress exists is expected and only means Traefik has no matching route yet
 
 Argo CD is validated on top of that path through `terraform/platform/platform-argocd-root`, where it is exposed by a Traefik ingress in the downstream cluster.
+
+In practice, the validation sequence is:
+
+- apply `terraform/rancher/downstream-ingress-root` so Traefik is exposed through the AWS NLB path
+- apply `terraform/platform/platform-argocd-root` so the downstream ingress exists for Argo CD
+- test through the AWS NLB with the expected Argo CD `Host` header before DNS wiring is in place
+
+### Validate Argo CD Before DNS Wiring
+
+Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Before public DNS is configured, validate that path by sending the request to the NLB hostname with the expected Argo CD `Host` header:
+
+```bash
+curl -I -H 'Host: <argocd-hostname>' http://<aws-nlb-hostname>
+```
+
+Success criteria:
+
+- an HTTP `200` response confirms that the request reached Traefik and matched the Argo CD ingress rule
+- an HTTP `404` response usually means Traefik is reachable but no matching ingress route exists yet
+
+That Host-header test is the validated proof that the downstream ingress path works end to end before public DNS is wired.
 
 ## Troubleshooting Notes
 
