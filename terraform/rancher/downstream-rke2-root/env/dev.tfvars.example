@@ -4,7 +4,7 @@ workload_cluster_name = "demo-rke2"
 
 # RKE2 / machine settings
 instance_type               = "t3.large"
-workload_kubernetes_version = "v1.29.4+rke2r1"
+workload_kubernetes_version = "v1.35.3+rke2r3"
 control_plane_quantity      = 1
 worker_quantity             = 1
 cluster_ready_wait_duration = "90s"

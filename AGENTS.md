@@ -4,24 +4,38 @@ This repository demonstrates how to provision a Kubernetes platform on AWS using
 
 ## Architecture
 
-Terraform provisions AWS infrastructure and installs Rancher on a bootstrap cluster.  
-Rancher then provisions a downstream RKE2 Kubernetes cluster using EC2 instances.
+Terraform provisions AWS infrastructure and a bootstrap `k3s` cluster.  
+That bootstrap cluster runs Rancher, which then provisions a downstream RKE2 cluster on AWS using EC2 instances.
 
 ## Components
 
 - Terraform
 - AWS EC2
+- k3s
 - Rancher
 - RKE2 Kubernetes
+- aws-cloud-controller-manager
+- Traefik
+- AWS Network Load Balancer
+- Argo CD
 - cert-manager
 - Let's Encrypt TLS
 
-## Workflow
+## Validated Workflow
 
 Terraform
-→ AWS infrastructure
-→ Bootstrap Kubernetes cluster
-→ Rancher installation
-→ cert-manager + Let's Encrypt
-→ Rancher machine pools
-→ RKE2 downstream cluster
+→ AWS infrastructure + bootstrap EC2 node
+→ bootstrap `k3s`
+→ cert-manager + Let's Encrypt `ClusterIssuer`
+→ Rancher
+→ downstream RKE2 on AWS
+→ `aws-cloud-controller-manager`
+→ Traefik customized via `HelmChartConfig`
+→ `Service` type `LoadBalancer`
+→ AWS NLB
+→ Argo CD via Traefik
+
+## Do Not Reintroduce
+
+- `kube-apiserver-arg = ["cloud-provider=external"]`
+- `node-labels=node-role.kubernetes.io/worker=true`

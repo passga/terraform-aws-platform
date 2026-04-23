@@ -27,6 +27,7 @@ terraform.tfvars
 *.pfx
 
 # Editor / OS
+.codex
 .DS_Store
 .idea/
 .vscode/

@@ -16,6 +16,7 @@ terraform/kube/*
 *.key
 id_rsa*
 .env
+.codex
 .idea/
 *.iml
 kubectl

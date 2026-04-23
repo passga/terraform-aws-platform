@@ -3,11 +3,11 @@
 ![Platform](https://img.shields.io/badge/Platform-Rancher-green)
 ![Cloud](https://img.shields.io/badge/Cloud-AWS-orange)
 
-# terraform
+# Terraform execution guide
 
 ## Purpose
 
-This directory contains the staged Terraform roots used to execute the validated platform workflow in this repository.
+This directory contains the staged Terraform roots that execute the validated platform workflow in this repository.
 
 This README is intentionally operational:
 
@@ -20,46 +20,20 @@ For the high-level architecture and project outcomes, use the repository root RE
 
 ## Terraform Roots
 
-### `terraform/aws-root`
+| Terraform root | Purpose | When to run |
+| --- | --- | --- |
+| `terraform/aws-root` | Create AWS network resources and the bootstrap EC2 node that installs `k3s` | First, before any Kubernetes or Rancher root |
+| `terraform/platform/platform-cert-manager-root` | Install cert-manager on the bootstrap cluster | After `aws-root`, before issuer and Rancher |
+| `terraform/platform/platform-issuer-root` | Create the Let's Encrypt `ClusterIssuer` for Rancher TLS | After cert-manager, before Rancher |
+| `terraform/rancher/rancher-server-root` | Install and bootstrap Rancher on the bootstrap cluster | After issuer, before downstream cluster creation |
+| `terraform/rancher/downstream-rke2-root` | Provision the Rancher-managed downstream RKE2 cluster on AWS | After Rancher is healthy and downstream IAM is ready |
+| `terraform/rancher/downstream-ingress-root` | Customize packaged Traefik with `HelmChartConfig` and expose it through `LoadBalancer` | After the downstream cluster is ready |
+| `terraform/platform/platform-argocd-root` | Install Argo CD and expose it through Traefik ingress | After downstream ingress is in place |
+| `terraform/rancher/downstream-project-root` | Create Rancher project and namespace resources | Last, after downstream cluster registration is complete |
 
-Creates the base AWS infrastructure for the bootstrap path and provisions the bootstrap EC2 node that installs k3s.
+## Validated Downstream Cluster Behavior
 
-Main outcome:
-
-- AWS network resources
-- bootstrap EC2 instance
-- retrieved kubeconfig for the bootstrap k3s cluster
-
-### `terraform/platform/platform-cert-manager-root`
-
-Installs cert-manager into the bootstrap k3s cluster.
-
-Main outcome:
-
-- cert-manager controllers running on the bootstrap cluster
-
-### `terraform/platform/platform-issuer-root`
-
-Creates the Let's Encrypt `ClusterIssuer` used for Rancher TLS on the bootstrap cluster.
-
-Main outcome:
-
-- bootstrap cluster `ClusterIssuer` ready for Rancher certificate issuance
-
-### `terraform/rancher/rancher-server-root`
-
-Installs Rancher on the bootstrap cluster, creates the Rancher TLS certificate, waits for trusted API readiness, and bootstraps the Rancher admin/API state.
-
-Main outcome:
-
-- Rancher reachable on the bootstrap cluster
-- Rancher API bootstrapped and ready for downstream provisioning
-
-### `terraform/rancher/downstream-rke2-root`
-
-Creates the Rancher-managed downstream RKE2 cluster on AWS.
-
-Validated downstream behavior:
+The current validated downstream AWS cloud-provider path is:
 
 - `machine_global_config` includes `cloud-provider-name = "aws"`
 - control-plane selector uses `disable-cloud-controller = true`
@@ -67,40 +41,6 @@ Validated downstream behavior:
 - control-plane selector uses `kubelet-arg = ["cloud-provider=external"]`
 - worker selector uses `kubelet-arg = ["cloud-provider=external"]`
 - `aws-cloud-controller-manager` is installed as part of the downstream cluster path
-
-This is the current validated AWS cloud-provider configuration for the downstream cluster.
-
-### `terraform/rancher/downstream-ingress-root`
-
-Customizes the packaged RKE2 Traefik deployment in the downstream cluster.
-
-Validated behavior:
-
-- uses `HelmChartConfig` named `rke2-traefik` in `kube-system`
-- sets `service.type = LoadBalancer`
-- applies AWS NLB annotations to the Traefik Service
-
-Main outcome:
-
-- Traefik exposed through a Kubernetes `LoadBalancer` Service
-- AWS NLB created for that Service
-
-### `terraform/platform/platform-argocd-root`
-
-Deploys Argo CD into the downstream cluster and exposes it through Traefik ingress.
-
-Main outcome:
-
-- Argo CD installed in the downstream cluster
-- Argo CD reachable through Traefik once ingress and DNS or host-header testing are in place
-
-### `terraform/rancher/downstream-project-root`
-
-Creates Rancher project and namespace resources after the downstream cluster is ready.
-
-Main outcome:
-
-- post-cluster Rancher project and namespace resources created against the validated downstream cluster
 
 ## Recommended Apply Order
 
@@ -114,8 +54,6 @@ Run the Terraform roots in this order:
 6. `terraform/rancher/downstream-ingress-root`
 7. `terraform/platform/platform-argocd-root`
 8. `terraform/rancher/downstream-project-root`
-
-Before running these roots, create a local `env/dev.tfvars` from the `env/dev.tfvars.example` file present in each root that needs one.
 
 Example execution sequence:
 
@@ -152,6 +90,8 @@ cd terraform/rancher/downstream-project-root
 terraform init
 terraform apply -var-file=env/dev.tfvars
 ```
+
+For each root that includes an `env/dev.tfvars.example`, create a local `env/dev.tfvars` before applying.
 
 ## Recommended Destroy Order
 
@@ -219,7 +159,7 @@ Validated practical note:
 - when that permission was missing, `rke2-traefik` stayed in `EXTERNAL-IP: pending`
 - the NLB did not complete reconciliation until that permission was available through `infra-dev-rke2-cloud-provider-aws`
 
-## Notes About Downstream Ingress, Traefik, And The NLB
+## Validated Downstream Ingress Path
 
 The validated downstream ingress path is:
 
@@ -236,62 +176,39 @@ Operational notes:
 - do not recreate `kube-system/rke2-traefik` as a separate Terraform-managed `Service`
 - customize Traefik through `HelmChartConfig` named `rke2-traefik`
 - `aws-cloud-controller-manager` is part of the validated downstream cluster path
-- the current validated path does not require any separate controller for this NLB workflow
+- the current validated NLB workflow relies on the AWS cloud provider integration and `aws-cloud-controller-manager` only
 - a `404` from the NLB before any ingress exists is expected and only means Traefik has no matching route yet
 
 Argo CD is validated on top of that path through `terraform/platform/platform-argocd-root`, where it is exposed by a Traefik ingress in the downstream cluster.
 
+In practice, the validation sequence is:
+
+- apply `terraform/rancher/downstream-ingress-root` so Traefik is exposed through the AWS NLB path
+- apply `terraform/platform/platform-argocd-root` so the downstream ingress exists for Argo CD
+- test through the AWS NLB with the expected Argo CD `Host` header before DNS wiring is in place
+
+### Validate Argo CD Before DNS Wiring
+
+Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Before public DNS is configured, validate that path by sending the request to the NLB hostname with the expected Argo CD `Host` header:
+
+```bash
+curl -I -H 'Host: <argocd-hostname>' http://<aws-nlb-hostname>
+```
+
+Success criteria:
+
+- an HTTP `200` response confirms that the request reached Traefik and matched the Argo CD ingress rule
+- an HTTP `404` response usually means Traefik is reachable but no matching ingress route exists yet
+
+That Host-header test is the validated proof that the downstream ingress path works end to end before public DNS is wired.
+
 ## Troubleshooting Notes
 
-### Downstream nodes are not created by Rancher
-
-Check:
-
-- the instance profile exists in AWS
-- `downstream_node_instance_profile_name` is the instance profile name, not an ARN
-- the AWS identity used by Terraform or Rancher has `iam:PassRole`
-- Terraform can read the instance profile with `iam:GetInstanceProfile`
-
-### `rke2-traefik` stays in `EXTERNAL-IP: pending`
-
-Check:
-
-- the downstream node role has the validated policy `infra-dev-rke2-cloud-provider-aws`
-- that policy includes the missing permission seen in practice: `ec2:CreateTags` on `security-group/*`
-- `terraform/rancher/downstream-ingress-root` has been applied
-- Traefik is still being customized through `HelmChartConfig`, not by replacing the packaged Service
-
-### NLB returns `404`
-
-Check:
-
-- the NLB already points to the Traefik `LoadBalancer` Service
-- an ingress exists for the hostname or path you are testing
-
-This is expected before any matching ingress route exists.
-
-### `kube-apiserver` fails with `unknown flag: --cloud-provider`
-
-Do not use:
-
-- `kube-apiserver-arg = ["cloud-provider=external"]`
-
-This is not part of the validated setup and breaks startup.
-
-### `kubelet` fails when worker node labels are forced
-
-Do not use:
-
-- `node-labels=node-role.kubernetes.io/worker=true`
-
-This is not part of the validated setup and caused kubelet startup failure in practice.
-
-### Downstream registration fails even though Rancher is reachable
-
-Check:
-
-- Rancher TLS has been issued successfully
-- the Rancher endpoint serves the expected certificate chain
-- downstream nodes trust the CA chain served by Rancher
-
-TLS trust between Rancher and downstream nodes still matters for node registration.
+| Symptom | Check |
+| --- | --- |
+| Downstream nodes are not created by Rancher | Confirm the instance profile exists, `downstream_node_instance_profile_name` is a name not an ARN, the AWS identity has `iam:PassRole`, and Terraform can call `iam:GetInstanceProfile` |
+| `rke2-traefik` stays in `EXTERNAL-IP: pending` | Confirm the downstream node role has `infra-dev-rke2-cloud-provider-aws`, including `ec2:CreateTags` on `security-group/*`, and that `downstream-ingress-root` customized the packaged Traefik service through `HelmChartConfig` |
+| NLB returns `404` | This is expected before a matching ingress exists; confirm the NLB already points to the Traefik `LoadBalancer` service |
+| `kube-apiserver` fails with `unknown flag: --cloud-provider` | Do not use `kube-apiserver-arg = ["cloud-provider=external"]` |
+| `kubelet` fails when worker node labels are forced | Do not use `node-labels=node-role.kubernetes.io/worker=true` |
+| Downstream registration fails even though Rancher is reachable | Confirm Rancher TLS was issued correctly and downstream nodes trust the Rancher certificate chain |

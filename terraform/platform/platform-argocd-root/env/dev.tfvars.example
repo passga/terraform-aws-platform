@@ -1,0 +1,1 @@
+kubeconfig_path = "../../rancher/downstream-rke2-root/infra-aws-test-kubeconfig.yaml"
