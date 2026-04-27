@@ -1,0 +1,9 @@
+aws_region = "eu-west-3"
+
+hosted_zone_name = "infra.garciapass.fr"
+
+app_records = {
+  argocd_dev = {
+    fqdn = "argocd-dev.infra.garciapass.fr"
+  }
+}
