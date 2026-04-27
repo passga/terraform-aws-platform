@@ -22,13 +22,12 @@ variable "app_records" {
   validation {
     condition = alltrue([
       for record in values(var.app_records) : (
-        trimsuffix(record.fqdn, ".") == trimsuffix(var.hosted_zone_name, ".") ||
         endswith(
           trimsuffix(record.fqdn, "."),
           ".${trimsuffix(var.hosted_zone_name, ".")}"
         )
       )
     ])
-    error_message = "Every app_records.fqdn value must stay within hosted_zone_name."
+    error_message = "Every app_records.fqdn value must be a subdomain inside hosted_zone_name (zone apex is not allowed for CNAME records)."
   }
 }
