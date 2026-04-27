@@ -16,10 +16,9 @@ output "hosted_zone_name_servers" {
 output "managed_app_records" {
   description = "Managed application DNS records keyed by logical record name."
   value = {
-    for name, record in aws_route53_record.app_alias_a : name => {
+    for name, record in aws_route53_record.app_cname : name => {
       fqdn            = record.fqdn
       target_dns_name = local.normalized_app_records[name].target_dns_name
-      target_zone_id  = local.normalized_app_records[name].target_zone_id
     }
   }
 }

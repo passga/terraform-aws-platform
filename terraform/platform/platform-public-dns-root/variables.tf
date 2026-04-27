@@ -12,11 +12,10 @@ variable "hosted_zone_name" {
 }
 
 variable "app_records" {
-  description = "Alias A records to manage in the delegated hosted zone."
+  description = "CNAME records to manage in the delegated hosted zone. Records default to the downstream Traefik hostname unless a target override is set."
   type = map(object({
     fqdn            = string
-    target_dns_name = string
-    target_zone_id  = string
+    target_dns_name = optional(string)
   }))
   default = {}
 

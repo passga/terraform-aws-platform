@@ -1,10 +1,3 @@
-variable "aws_region" {
-  type        = string
-  description = "Dedicated AWS region for downstream-ingress-root. If null, fallback to aws-root remote state."
-  default     = null
-  nullable    = true
-}
-
 variable "aws_load_balancer_controller_chart_version" {
   type        = string
   description = "Helm chart version for aws-load-balancer-controller."

@@ -4,8 +4,6 @@ hosted_zone_name = "infra.garciapass.fr"
 
 app_records = {
   argocd_dev = {
-    fqdn            = "argocd-dev.infra.garciapass.fr"
-    target_dns_name = "<copy from ../../rancher/downstream-ingress-root output traefik_load_balancer_hostname>"
-    target_zone_id  = "<copy from ../../rancher/downstream-ingress-root output traefik_load_balancer_zone_id>"
+    fqdn = "argocd-dev.infra.garciapass.fr"
   }
 }

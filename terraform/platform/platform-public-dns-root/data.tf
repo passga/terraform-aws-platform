@@ -6,3 +6,11 @@ data "terraform_remote_state" "aws_root" {
     path = "../../aws-root/terraform.tfstate"
   }
 }
+
+data "terraform_remote_state" "downstream_ingress" {
+  backend = "local"
+
+  config = {
+    path = "../../rancher/downstream-ingress-root/terraform.tfstate"
+  }
+}

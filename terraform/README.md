@@ -28,7 +28,7 @@ For the high-level architecture and project outcomes, use the repository root RE
 | `terraform/rancher/rancher-server-root` | Install and bootstrap Rancher on the bootstrap cluster | After issuer, before downstream cluster creation |
 | `terraform/rancher/downstream-rke2-root` | Provision the Rancher-managed downstream RKE2 cluster on AWS | After Rancher is healthy and downstream IAM is ready |
 | `terraform/rancher/downstream-ingress-root` | Customize packaged Traefik with `HelmChartConfig` and expose it through `LoadBalancer` | After the downstream cluster is ready |
-| `terraform/platform/platform-public-dns-root` | Create and retain the delegated Route53 public zone and manage generic downstream app alias records | After downstream ingress is in place, before or alongside app-specific DNS usage |
+| `terraform/platform/platform-public-dns-root` | Create and retain the delegated Route53 public zone and manage generic downstream app DNS records | After downstream ingress is in place, before or alongside app-specific DNS usage |
 | `terraform/platform/platform-argocd-root` | Install Argo CD and expose it through Traefik ingress | After downstream ingress is in place |
 | `terraform/rancher/downstream-project-root` | Create Rancher project and namespace resources | Last, after downstream cluster registration is complete |
 
@@ -167,6 +167,33 @@ Validated practical note:
 - when that permission was missing, `rke2-traefik` stayed in `EXTERNAL-IP: pending`
 - the NLB did not complete reconciliation until that permission was available through `infra-dev-rke2-cloud-provider-aws`
 
+## IAM Prerequisites For Persistent Public DNS
+
+Route53 permissions for `terraform/platform/platform-public-dns-root` are a separate IAM prerequisite from the downstream node IAM role and instance profile requirements above.
+
+These permissions are required before creating the delegated hosted zone `infra.garciapass.fr`.
+
+Validated practical note:
+
+- the missing Route53 permissions observed during testing were `route53:CreateHostedZone`
+- the missing Route53 permissions observed during testing were `route53:ListTagsForResource`
+
+Typical Route53 permissions needed for this root are:
+
+- `route53:CreateHostedZone`
+- `route53:GetHostedZone`
+- `route53:DeleteHostedZone`
+- `route53:ListHostedZones`
+- `route53:ListHostedZonesByName`
+- `route53:ChangeResourceRecordSets`
+- `route53:ListResourceRecordSets`
+- `route53:GetChange`
+- `route53:ListTagsForResource`
+
+Operational note:
+
+- the public DNS zone is persistent and should not be part of normal cluster destroy workflows, even though `route53:DeleteHostedZone` may still be needed for exceptional manual cleanup
+
 ## Validated Downstream Ingress Path
 
 The validated downstream ingress path is:
@@ -198,35 +225,37 @@ It is intentionally generic and not coupled to Argo CD:
 - it creates a public Route53 hosted zone for `infra.garciapass.fr`
 - it protects that hosted zone with `prevent_destroy`
 - it manages downstream application DNS entries through a variable-driven `app_records` map
-- it creates Route53 alias `A` records that target the downstream Traefik AWS NLB or any future compatible AWS load balancer
+- it creates Route53 `CNAME` records that default to the current downstream Traefik LoadBalancer hostname from `terraform/rancher/downstream-ingress-root`
+- it still allows per-record target hostname overrides for future non-default use cases
 - it follows the repository-wide AWS provider pattern: use explicit `aws_region` when provided, otherwise fall back to `../../aws-root/terraform.tfstate`
 
 Operational model:
 
 - keep the hosted zone persistent even if the downstream cluster is destroyed and recreated
-- when the downstream NLB changes after a redeploy, update only the Route53 alias record targets in `platform-public-dns-root`
+- when the downstream NLB changes after a redeploy, standard app records follow the new Traefik hostname on the next `platform-public-dns-root` apply without tfvars target edits
 
-The initial `env/dev.tfvars.example` shows an `argocd-dev.infra.garciapass.fr` alias that points to the downstream Traefik NLB by consuming these outputs from `terraform/rancher/downstream-ingress-root`:
+The root reads this output automatically from `terraform/rancher/downstream-ingress-root`:
 
 - `traefik_load_balancer_hostname`
-- `traefik_load_balancer_zone_id`
+
+The initial `env/dev.tfvars.example` shows an `argocd-dev.infra.garciapass.fr` record that only sets `fqdn`, because the CNAME target defaults to the current downstream Traefik hostname.
 
 ### Public DNS Operator Workflow
 
 Use this workflow for the initial setup:
 
 1. Apply `terraform/rancher/downstream-ingress-root`.
-2. Read `traefik_load_balancer_hostname` and `traefik_load_balancer_zone_id` from that root.
-3. Set `app_records` in `terraform/platform/platform-public-dns-root/env/dev.tfvars`.
-4. Apply `terraform/platform/platform-public-dns-root`.
-5. Read `hosted_zone_name_servers` from `platform-public-dns-root`.
-6. In OVH, delegate `infra.garciapass.fr` once by replacing its authoritative name servers with the Route53 name servers from `hosted_zone_name_servers`.
+2. Set `app_records` in `terraform/platform/platform-public-dns-root/env/dev.tfvars`.
+3. Apply `terraform/platform/platform-public-dns-root`.
+4. Read `hosted_zone_name_servers` from `platform-public-dns-root`.
+5. In OVH, delegate `infra.garciapass.fr` once by replacing its authoritative name servers with the Route53 name servers from `hosted_zone_name_servers`.
 
 Use this workflow when the downstream NLB changes after a redeploy:
 
-1. Re-apply `terraform/rancher/downstream-ingress-root` if needed and read the new `traefik_load_balancer_hostname` and `traefik_load_balancer_zone_id`.
-2. Update only the affected `app_records` targets in `terraform/platform/platform-public-dns-root/env/dev.tfvars`.
-3. Re-apply `terraform/platform/platform-public-dns-root`.
+1. Re-apply `terraform/rancher/downstream-ingress-root` if needed so its outputs reflect the current Traefik LoadBalancer hostname.
+2. Re-apply `terraform/platform/platform-public-dns-root`.
+
+Standard records that rely on the default target follow the current Traefik NLB automatically. Only records using explicit target override fields need manual target updates.
 
 Do not destroy `terraform/platform/platform-public-dns-root` as part of normal cluster teardown, and do not change OVH again after the initial delegation unless you intentionally recreate the hosted zone.
 
