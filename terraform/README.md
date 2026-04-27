@@ -199,10 +199,10 @@ It is intentionally generic and not coupled to Argo CD:
 - it protects that hosted zone with `prevent_destroy`
 - it manages downstream application DNS entries through a variable-driven `app_records` map
 - it creates Route53 alias `A` records that target the downstream Traefik AWS NLB or any future compatible AWS load balancer
+- it follows the repository-wide AWS provider pattern: use explicit `aws_region` when provided, otherwise fall back to `../../aws-root/terraform.tfstate`
 
 Operational model:
 
-- configure OVH once to delegate `infra.garciapass.fr` to the Route53 name servers output by `platform-public-dns-root`
 - keep the hosted zone persistent even if the downstream cluster is destroyed and recreated
 - when the downstream NLB changes after a redeploy, update only the Route53 alias record targets in `platform-public-dns-root`
 
@@ -210,6 +210,27 @@ The initial `env/dev.tfvars.example` shows an `argocd-dev.infra.garciapass.fr` a
 
 - `traefik_load_balancer_hostname`
 - `traefik_load_balancer_zone_id`
+
+### Public DNS Operator Workflow
+
+Use this workflow for the initial setup:
+
+1. Apply `terraform/rancher/downstream-ingress-root`.
+2. Read `traefik_load_balancer_hostname` and `traefik_load_balancer_zone_id` from that root.
+3. Set `app_records` in `terraform/platform/platform-public-dns-root/env/dev.tfvars`.
+4. Apply `terraform/platform/platform-public-dns-root`.
+5. Read `hosted_zone_name_servers` from `platform-public-dns-root`.
+6. In OVH, delegate `infra.garciapass.fr` once by replacing its authoritative name servers with the Route53 name servers from `hosted_zone_name_servers`.
+
+Use this workflow when the downstream NLB changes after a redeploy:
+
+1. Re-apply `terraform/rancher/downstream-ingress-root` if needed and read the new `traefik_load_balancer_hostname` and `traefik_load_balancer_zone_id`.
+2. Update only the affected `app_records` targets in `terraform/platform/platform-public-dns-root/env/dev.tfvars`.
+3. Re-apply `terraform/platform/platform-public-dns-root`.
+
+Do not destroy `terraform/platform/platform-public-dns-root` as part of normal cluster teardown, and do not change OVH again after the initial delegation unless you intentionally recreate the hosted zone.
+
+TLS is intentionally out of scope for this root. Argo CD and future application certificate management should be handled in a separate change.
 
 In practice, the validation sequence is:
 

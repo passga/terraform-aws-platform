@@ -105,4 +105,4 @@ terraform/
 
 Use [terraform/README.md](terraform/README.md) as the operational guide for Terraform root order, apply and destroy steps, prerequisites, IAM setup, ingress behavior, and troubleshooting.
 
-For public DNS, the delegated subdomain is `infra.garciapass.fr`. OVH only needs a one-time NS delegation to the Route53 hosted zone created by `terraform/platform/platform-public-dns-root`. After that, downstream application DNS changes happen only in Route53, and the hosted zone is intentionally kept persistent across downstream cluster redeploys.
+For public DNS, the delegated subdomain is `infra.garciapass.fr`. The Route53 root at `terraform/platform/platform-public-dns-root` follows the same AWS provider pattern as the other downstream roots: use explicit `aws_region` when provided, otherwise fall back to `aws-root` remote state. OVH only needs a one-time NS delegation to the Route53 hosted zone created by that root. After that, downstream application DNS changes happen only in Route53, and the hosted zone is intentionally kept persistent across downstream cluster redeploys.
