@@ -258,7 +258,7 @@ The root reads this output automatically from `terraform/rancher/downstream-ingr
 
 - `traefik_load_balancer_hostname`
 
-The initial `env/dev.tfvars.example` shows an application record such as `app.example.test` that only sets `fqdn`, because the CNAME target defaults to the current downstream Traefik hostname.
+The initial `env/dev.tfvars.example` shows an application record such as `apps.example.test` that only sets `fqdn`, because the CNAME target defaults to the current downstream Traefik hostname.
 
 ### Public DNS Operator Workflow
 
@@ -312,8 +312,11 @@ kubectl --kubeconfig <downstream-kubeconfig> -n cert-manager get pods
 kubectl --kubeconfig <downstream-kubeconfig> get clusterissuer
 kubectl --kubeconfig <downstream-kubeconfig> -n argocd get ingress argocd
 kubectl --kubeconfig <downstream-kubeconfig> -n argocd get certificate,secret
-curl -kI --resolve <argocd-hostname>:443:<aws-nlb-address> https://<argocd-hostname>/
+dig +short <aws-nlb-hostname> | head -n 1
+curl -kI --resolve argocd-dev.apps.example.test:443:<aws-nlb-ipv4-address> https://argocd-dev.apps.example.test/
 ```
+
+Use an IPv4 address from the NLB hostname lookup with `--resolve` (it does not accept a DNS hostname as the third value).
 
 Success criteria:
 
@@ -326,7 +329,7 @@ Success criteria:
 After public DNS is delegated and the app record exists, validate the public hostname directly:
 
 ```bash
-curl -I https://<argocd-hostname>/
+curl -I https://argocd-dev.apps.example.test/
 ```
 
 ## Troubleshooting Notes
