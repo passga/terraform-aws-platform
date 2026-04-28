@@ -342,6 +342,61 @@ Argo CD is validated on top of that path through `terraform/platform/platform-ar
 ### Validating Argo CD Access Before DNS Wiring
 
 In practice, the validation sequence is:
+
+1. Apply `terraform/rancher/downstream-ingress-root` and confirm Traefik has a LoadBalancer hostname.
+2. Validate Argo CD routing through the NLB with the expected `Host` header before delegating public DNS.
+3. After DNS delegation is in place, validate the same hostname through public DNS.
+
+Example:
+
+```bash
+curl -I -H 'Host: argocd-dev.apps.example.test' http://<aws-nlb-hostname>
+```
+
+### Current Downstream TLS Model
+
+The current validated downstream TLS model is one certificate per application hostname.
+
+- one hostname per application
+- one ingress per application hostname
+- one TLS secret per application hostname
+- one certificate per application hostname
+
+This is the current validated behavior for downstream applications exposed through Traefik and public DNS in the delegated subdomain.
+
+Wildcard or shared certificate support for the delegated public subdomain is not implemented yet.
+Treat that as a current limitation and a future evolution path rather than a supported configuration in the current repository state.
+A follow-up issue will track wildcard TLS support separately.
+
+### Validate Downstream HTTPS
+
+Downstream Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Validate the full HTTPS path with these checks:
+
+```bash
+kubectl --kubeconfig <downstream-kubeconfig> -n cert-manager get pods
+kubectl --kubeconfig <downstream-kubeconfig> get clusterissuer
+kubectl --kubeconfig <downstream-kubeconfig> -n argocd get ingress argocd
+kubectl --kubeconfig <downstream-kubeconfig> -n argocd get certificate,secret
+dig +short <aws-nlb-hostname> | head -n 1
+curl -kI --resolve argocd-dev.apps.example.test:443:<aws-nlb-ipv4-address> https://argocd-dev.apps.example.test/
+```
+
+Use an IPv4 address from the NLB hostname lookup with `--resolve` (it does not accept a DNS hostname as the third value).
+
+Expected result:
+
+- cert-manager pods are `Running` in the downstream cluster
+- the downstream `ClusterIssuer` is `Ready=True`
+- the Argo CD ingress advertises the expected hostname, ingress class, and TLS secret
+- the Argo CD TLS secret exists in the `argocd` namespace
+- the HTTPS request reaches Traefik and returns a non-`404` response for the Argo CD host
+
+After public DNS is delegated and the app record exists, validate the public hostname directly:
+
+```bash
+curl -I https://argocd-dev.apps.example.test/
+```
+
 ## Persistent Public DNS Layer
 
 The delegated public DNS root is `terraform/platform/platform-public-dns-root`.
@@ -393,55 +448,6 @@ HTTPS for downstream applications is handled separately from this DNS root. The 
 - apply `terraform/platform/platform-issuer-downstream-root` so the downstream `ClusterIssuer` exists
 - apply `terraform/platform/platform-argocd-root` so Argo CD ingress requests and serves TLS
 - test Argo CD over HTTPS first through the AWS NLB with the expected `Host` header, then through public DNS after delegation is in place
-
-Example:
-
-```bash
-curl -I -H 'Host: argocd-dev.apps.example' http://<aws-nlb-hostname>
-```
-## Persistent Public DNS Layer
-
-### Current Downstream TLS Model
-
-The current validated downstream TLS model is one certificate per application hostname.
-
-- one hostname per application
-- one ingress per application hostname
-- one TLS secret per application hostname
-- one certificate per application hostname
-
-This is the current validated behavior for downstream applications exposed through Traefik and public DNS in the delegated subdomain.
-
-Wildcard or shared certificate support for the delegated public subdomain is not implemented yet.
-Treat that as a current limitation and a future evolution path rather than a supported configuration in the current repository state.
-A follow-up issue will track wildcard TLS support separately.
-
-### Validate Downstream HTTPS
-
-Downstream Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Validate the full HTTPS path with these checks:
-
-kubectl --kubeconfig <downstream-kubeconfig> -n cert-manager get pods
-kubectl --kubeconfig <downstream-kubeconfig> get clusterissuer
-kubectl --kubeconfig <downstream-kubeconfig> -n argocd get ingress argocd
-kubectl --kubeconfig <downstream-kubeconfig> -n argocd get certificate,secret
-dig +short <aws-nlb-hostname> | head -n 1
-curl -kI --resolve argocd-dev.apps.example.test:443:<aws-nlb-ipv4-address> https://argocd-dev.apps.example.test/
-
-Use an IPv4 address from the NLB hostname lookup with `--resolve` (it does not accept a DNS hostname as the third value).
-
-Expected result:
-
-- cert-manager pods are `Running` in the downstream cluster
-- the downstream `ClusterIssuer` is `Ready=True`
-- the Argo CD ingress advertises the expected hostname, ingress class, and TLS secret
-- the Argo CD TLS secret exists in the `argocd` namespace
-- the HTTPS request reaches Traefik and returns a non-`404` response for the Argo CD host
-
-After public DNS is delegated and the app record exists, validate the public hostname directly:
-
-```bash
-curl -I https://argocd-dev.apps.example.test/
-```
 
 ## Troubleshooting Notes
 
