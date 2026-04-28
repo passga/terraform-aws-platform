@@ -89,7 +89,7 @@ A follow-up issue will track wildcard TLS support as the next evolution of the d
 
 With the current validated code path, this repository demonstrates:
 
-- a bootstrap k3s cluster on AWS for Rancher
+- a bootstrap `k3s` cluster on AWS for Rancher
 - Rancher served with cert-manager-managed TLS
 - a Rancher-managed downstream RKE2 cluster on AWS
 - external AWS cloud-provider integration through `aws-cloud-controller-manager`
@@ -106,6 +106,15 @@ With the current validated code path, this repository demonstrates:
 ## Why This Project Matters
 
 This project shows a practical multi-stage platform build rather than an isolated Terraform demo. It validates the handoff from infrastructure provisioning to bootstrap cluster services, Rancher-based downstream provisioning, AWS cloud integration, and application exposure through Traefik and an AWS NLB.
+
+It also captures the troubleshooting that made the validated path work in practice:
+
+- downstream node IAM remains a manual prerequisite
+- the validated downstream node policy is `infra-dev-rke2-cloud-provider-aws`
+- a missing `ec2:CreateTags` permission on `security-group/*` caused `rke2-traefik` to stay in `EXTERNAL-IP: pending`
+- `kube-apiserver-arg = ["cloud-provider=external"]` is not part of the validated setup
+- `node-labels=node-role.kubernetes.io/worker=true` is not part of the validated setup
+- a `404` from the NLB before any ingress exists is expected and only means Traefik has no matching route yet
 
 ## Repository Structure
 

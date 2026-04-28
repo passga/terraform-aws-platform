@@ -11,10 +11,11 @@ This directory contains the staged Terraform roots that execute the validated pl
 
 This README is intentionally operational:
 
-- it documents which Terraform roots to run
+- it explains which Terraform roots to run
 - it documents the required execution order
-- it documents the downstream IAM prerequisite
-- it documents the validated ingress and NLB behavior
+- it documents the downstream IAM and instance profile prerequisites
+- it documents the validated ingress and AWS NLB path
+- it gives short troubleshooting guidance for the validated setup
 
 For the high-level architecture and project outcomes, use the repository root README.
 
@@ -39,11 +40,13 @@ For the high-level architecture and project outcomes, use the repository root RE
 The current validated downstream AWS cloud-provider path is:
 
 - `machine_global_config` includes `cloud-provider-name = "aws"`
-- control-plane selector uses `disable-cloud-controller = true`
-- control-plane selector uses `kube-controller-manager-arg = ["cloud-provider=external"]`
-- control-plane selector uses `kubelet-arg = ["cloud-provider=external"]`
-- worker selector uses `kubelet-arg = ["cloud-provider=external"]`
+- the control-plane selector uses `disable-cloud-controller = true`
+- the control-plane selector uses `kube-controller-manager-arg = ["cloud-provider=external"]`
+- the control-plane selector uses `kubelet-arg = ["cloud-provider=external"]`
+- the worker selector uses `kubelet-arg = ["cloud-provider=external"]`
 - `aws-cloud-controller-manager` is installed as part of the downstream cluster path
+
+This is the current validated downstream AWS integration reflected by the repository.
 
 ## Recommended Apply Order
 
@@ -60,6 +63,8 @@ Run the Terraform roots in this order:
 9. `terraform/platform/platform-issuer-downstream-root`
 10. `terraform/platform/platform-argocd-root`
 11. `terraform/rancher/downstream-project-root`
+
+For each root that includes an `env/dev.tfvars.example`, create a local `env/dev.tfvars` before applying.
 
 Example execution sequence:
 
@@ -108,8 +113,6 @@ cd terraform/rancher/downstream-project-root
 terraform init
 terraform apply -var-file=env/dev.tfvars
 ```
-
-For each root that includes an `env/dev.tfvars.example`, create a local `env/dev.tfvars` before applying.
 
 ## Recommended Destroy Order
 
@@ -166,7 +169,7 @@ terraform destroy -var-file=env/dev.tfvars
 
 Downstream node IAM remains a manual prerequisite for the validated setup.
 
-You must create in AWS before running `terraform/rancher/downstream-rke2-root`:
+Before running `terraform/rancher/downstream-rke2-root`, you must create in AWS:
 
 - one EC2 IAM role for downstream RKE2 nodes
 - one EC2 instance profile associated with that role
@@ -174,18 +177,118 @@ You must create in AWS before running `terraform/rancher/downstream-rke2-root`:
 
 The Terraform and Rancher code in this repository do not create that downstream node IAM role or instance profile for you.
 
-Operational requirements:
+### IAM Checklist For The Validated Setup
 
-- `downstream_node_instance_profile_name` must be the instance profile name
-- do not pass an instance profile ARN
-- the AWS identity used by Terraform or by the Rancher cloud credential must have `iam:PassRole` on the downstream node role
-- the Terraform AWS identity must have `iam:GetInstanceProfile` on the existing instance profile
+The validated downstream AWS path relies on three distinct IAM pieces.
 
-Validated practical note:
+#### 1. Downstream node IAM role
 
-- the missing permission observed in practice was `ec2:CreateTags` on `security-group/*`
-- when that permission was missing, `rke2-traefik` stayed in `EXTERNAL-IP: pending`
-- the NLB did not complete reconciliation until that permission was available through `infra-dev-rke2-cloud-provider-aws`
+This is the IAM role ultimately attached to the downstream EC2 instances through the instance profile.
+
+It must:
+
+- be assumable by EC2
+- be associated with the downstream EC2 instance profile
+- have the validated custom policy `infra-dev-rke2-cloud-provider-aws`
+
+#### 2. Downstream EC2 instance profile
+
+This is what Rancher attaches to the EC2 machines it creates.
+
+It must:
+
+- exist before running `terraform/rancher/downstream-rke2-root`
+- be associated with the intended downstream node IAM role
+- be passed by **name** through `downstream_node_instance_profile_name`
+- never be passed by ARN
+
+Example:
+
+```hcl
+downstream_node_instance_profile_name = "rke2-downstream-instance-profile"
+```
+
+#### 3. AWS identities that interact with the role
+
+The AWS identity used by Terraform or by the Rancher cloud credential to launch downstream EC2 instances must have:
+
+- `iam:PassRole` on the downstream node IAM role
+
+The Terraform AWS identity must also have:
+
+- `iam:GetInstanceProfile` on the existing instance profile
+
+Without these permissions:
+
+- Rancher may fail to launch the EC2 instances
+- Terraform may fail to validate the instance profile before passing its name into Rancher
+
+### Trust Policy Requirement
+
+The downstream node IAM role must be assumable by EC2.
+
+Expected trust relationship principal:
+
+- `ec2.amazonaws.com`
+
+If the trust policy is incorrect, the role may exist and the instance profile may exist, but the launched EC2 instances will not be able to use the intended role correctly.
+
+### Required Runtime Permissions For The Downstream Node Role
+
+The validated downstream node policy is:
+
+- `infra-dev-rke2-cloud-provider-aws`
+
+At a high level, it must cover:
+
+- Auto Scaling describe permissions
+- EC2 describe permissions
+- `ec2:CreateSecurityGroup`
+- `ec2:CreateTags`
+- `ec2:ModifyInstanceAttribute`
+- `ec2:AuthorizeSecurityGroupIngress`
+- `ec2:RevokeSecurityGroupIngress`
+- `ec2:DeleteSecurityGroup`
+- `ec2:CreateRoute`
+- `ec2:DeleteRoute`
+- Elastic Load Balancing permissions required to create, describe, modify, and delete the AWS NLB and related target groups and listeners
+- `iam:CreateServiceLinkedRole`
+- `kms:DescribeKey`
+
+The missing permission observed in practice was:
+
+- `ec2:CreateTags` on `security-group/*`
+
+When that permission was missing:
+
+- `rke2-traefik` stayed in `EXTERNAL-IP: pending`
+- the AWS NLB did not complete reconciliation
+
+### Verifying The IAM Setup
+
+Check that the instance profile exists:
+
+```bash
+aws iam get-instance-profile --instance-profile-name <instance-profile-name>
+```
+
+Check that the role exists:
+
+```bash
+aws iam get-role --role-name <role-name>
+```
+
+Check that the expected policy is attached:
+
+```bash
+aws iam list-attached-role-policies --role-name <role-name>
+```
+
+Expected result:
+
+- the instance profile exists
+- the instance profile contains the intended downstream node role
+- the role has `infra-dev-rke2-cloud-provider-aws` attached
 
 ## IAM Prerequisites For Persistent Public DNS
 
@@ -236,6 +339,9 @@ Operational notes:
 
 Argo CD is validated on top of that path through `terraform/platform/platform-argocd-root`, where it is exposed by a Traefik ingress in the downstream cluster.
 
+### Validating Argo CD Access Before DNS Wiring
+
+In practice, the validation sequence is:
 ## Persistent Public DNS Layer
 
 The delegated public DNS root is `terraform/platform/platform-public-dns-root`.
@@ -288,6 +394,13 @@ HTTPS for downstream applications is handled separately from this DNS root. The 
 - apply `terraform/platform/platform-argocd-root` so Argo CD ingress requests and serves TLS
 - test Argo CD over HTTPS first through the AWS NLB with the expected `Host` header, then through public DNS after delegation is in place
 
+Example:
+
+```bash
+curl -I -H 'Host: argocd-dev.apps.example' http://<aws-nlb-hostname>
+```
+## Persistent Public DNS Layer
+
 ### Current Downstream TLS Model
 
 The current validated downstream TLS model is one certificate per application hostname.
@@ -307,18 +420,16 @@ A follow-up issue will track wildcard TLS support separately.
 
 Downstream Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Validate the full HTTPS path with these checks:
 
-```bash
 kubectl --kubeconfig <downstream-kubeconfig> -n cert-manager get pods
 kubectl --kubeconfig <downstream-kubeconfig> get clusterissuer
 kubectl --kubeconfig <downstream-kubeconfig> -n argocd get ingress argocd
 kubectl --kubeconfig <downstream-kubeconfig> -n argocd get certificate,secret
 dig +short <aws-nlb-hostname> | head -n 1
 curl -kI --resolve argocd-dev.apps.example.test:443:<aws-nlb-ipv4-address> https://argocd-dev.apps.example.test/
-```
 
 Use an IPv4 address from the NLB hostname lookup with `--resolve` (it does not accept a DNS hostname as the third value).
 
-Success criteria:
+Expected result:
 
 - cert-manager pods are `Running` in the downstream cluster
 - the downstream `ClusterIssuer` is `Ready=True`
