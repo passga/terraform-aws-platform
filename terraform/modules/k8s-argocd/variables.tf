@@ -24,7 +24,7 @@ variable "cluster_issuer_name" {
 variable "ingress_class_name" {
   type        = string
   description = "IngressClass used to expose Argo CD."
-  default     = "nginx"
+  default     = "traefik"
 }
 
 variable "tls_secret_name" {

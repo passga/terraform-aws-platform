@@ -54,12 +54,18 @@ resource "kubernetes_ingress_v1" "argocd" {
     namespace = kubernetes_namespace.argocd.metadata[0].name
 
     annotations = {
-      "traefik.ingress.kubernetes.io/router.entrypoints" = "web"
+      "cert-manager.io/cluster-issuer"                   = var.cluster_issuer_name
+      "traefik.ingress.kubernetes.io/router.entrypoints" = "web,websecure"
     }
   }
 
   spec {
-    ingress_class_name = "traefik"
+    ingress_class_name = var.ingress_class_name
+
+    tls {
+      hosts       = [var.hostname]
+      secret_name = var.tls_secret_name
+    }
 
     rule {
       host = var.hostname

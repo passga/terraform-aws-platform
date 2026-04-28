@@ -22,6 +22,21 @@ The validated implementation covers:
 - delegated public DNS in Route53 for downstream applications
 - Argo CD exposed through Traefik ingress
 
+## Current Downstream TLS Model
+
+The current validated TLS model for downstream applications is hostname-specific.
+
+- each downstream application is exposed through its own hostname
+- each application hostname uses its own ingress
+- each application hostname uses its own TLS secret
+- each application hostname uses its own certificate
+
+This is the currently validated behavior for applications exposed through Traefik and the delegated public subdomain.
+
+Wildcard or shared certificate support for the delegated public subdomain is not implemented yet.
+Treat that as a current limitation of the repository, not as a supported path.
+A follow-up issue will track wildcard TLS support as the next evolution of the downstream application TLS model.
+
 ## Validated Architecture
 
 ```text

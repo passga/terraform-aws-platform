@@ -29,7 +29,9 @@ For the high-level architecture and project outcomes, use the repository root RE
 | `terraform/rancher/downstream-rke2-root` | Provision the Rancher-managed downstream RKE2 cluster on AWS | After Rancher is healthy and downstream IAM is ready |
 | `terraform/rancher/downstream-ingress-root` | Customize packaged Traefik with `HelmChartConfig` and expose it through `LoadBalancer` | After the downstream cluster is ready |
 | `terraform/platform/platform-public-dns-root` | Create and retain the delegated Route53 public zone and manage generic downstream app DNS records | After downstream ingress is in place, before or alongside app-specific DNS usage |
-| `terraform/platform/platform-argocd-root` | Install Argo CD and expose it through Traefik ingress | After downstream ingress is in place |
+| `terraform/platform/platform-cert-manager-downstream-root` | Install cert-manager on the downstream cluster | After downstream ingress and before downstream issuer or HTTPS apps |
+| `terraform/platform/platform-issuer-downstream-root` | Create the downstream Let's Encrypt `ClusterIssuer` for Traefik-exposed applications | After downstream cert-manager, before downstream HTTPS apps |
+| `terraform/platform/platform-argocd-root` | Install Argo CD and expose it through Traefik ingress with TLS | After downstream issuer is in place |
 | `terraform/rancher/downstream-project-root` | Create Rancher project and namespace resources | Last, after downstream cluster registration is complete |
 
 ## Validated Downstream Cluster Behavior
@@ -54,8 +56,10 @@ Run the Terraform roots in this order:
 5. `terraform/rancher/downstream-rke2-root`
 6. `terraform/rancher/downstream-ingress-root`
 7. `terraform/platform/platform-public-dns-root`
-8. `terraform/platform/platform-argocd-root`
-9. `terraform/rancher/downstream-project-root`
+8. `terraform/platform/platform-cert-manager-downstream-root`
+9. `terraform/platform/platform-issuer-downstream-root`
+10. `terraform/platform/platform-argocd-root`
+11. `terraform/rancher/downstream-project-root`
 
 Example execution sequence:
 
@@ -88,6 +92,14 @@ cd terraform/platform/platform-public-dns-root
 terraform init
 terraform apply -var-file=env/dev.tfvars
 
+cd terraform/platform/platform-cert-manager-downstream-root
+terraform init
+terraform apply -var-file=env/dev.tfvars
+
+cd terraform/platform/platform-issuer-downstream-root
+terraform init
+terraform apply -var-file=env/dev.tfvars
+
 cd terraform/platform/platform-argocd-root
 terraform init
 terraform apply -var-file=env/dev.tfvars
@@ -105,12 +117,14 @@ Destroy in reverse order:
 
 1. `terraform/rancher/downstream-project-root`
 2. `terraform/platform/platform-argocd-root`
-3. `terraform/rancher/downstream-ingress-root`
-4. `terraform/rancher/downstream-rke2-root`
-5. `terraform/rancher/rancher-server-root`
-6. `terraform/platform/platform-issuer-root`
-7. `terraform/platform/platform-cert-manager-root`
-8. `terraform/aws-root`
+3. `terraform/platform/platform-issuer-downstream-root`
+4. `terraform/platform/platform-cert-manager-downstream-root`
+5. `terraform/rancher/downstream-ingress-root`
+6. `terraform/rancher/downstream-rke2-root`
+7. `terraform/rancher/rancher-server-root`
+8. `terraform/platform/platform-issuer-root`
+9. `terraform/platform/platform-cert-manager-root`
+10. `terraform/aws-root`
 
 Do not include `terraform/platform/platform-public-dns-root` in normal cluster destroy workflows. That root owns the persistent delegated Route53 hosted zone for downstream applications and uses `prevent_destroy` so it survives downstream cluster redeploys.
 
@@ -121,6 +135,12 @@ cd terraform/rancher/downstream-project-root
 terraform destroy -var-file=env/dev.tfvars
 
 cd terraform/platform/platform-argocd-root
+terraform destroy -var-file=env/dev.tfvars
+
+cd terraform/platform/platform-issuer-downstream-root
+terraform destroy -var-file=env/dev.tfvars
+
+cd terraform/platform/platform-cert-manager-downstream-root
 terraform destroy -var-file=env/dev.tfvars
 
 cd terraform/rancher/downstream-ingress-root
@@ -260,28 +280,54 @@ Standard records that rely on the default target follow the current Traefik NLB 
 
 Do not destroy `terraform/platform/platform-public-dns-root` as part of normal cluster teardown, and do not change the parent DNS delegation again after the initial setup unless you intentionally recreate the hosted zone.
 
-TLS is intentionally out of scope for this root. Argo CD and future application certificate management should be handled in a separate change.
-
-In practice, the validation sequence is:
+HTTPS for downstream applications is handled separately from this DNS root. The validated downstream TLS path for Argo CD is:
 
 - apply `terraform/rancher/downstream-ingress-root` so Traefik is exposed through the AWS NLB path
-- apply `terraform/platform/platform-argocd-root` so the downstream ingress exists for Argo CD
-- test through the AWS NLB with the expected Argo CD `Host` header before DNS wiring is in place
+- apply `terraform/platform/platform-cert-manager-downstream-root` so cert-manager runs in the downstream cluster
+- apply `terraform/platform/platform-issuer-downstream-root` so the downstream `ClusterIssuer` exists
+- apply `terraform/platform/platform-argocd-root` so Argo CD ingress requests and serves TLS
+- test Argo CD over HTTPS first through the AWS NLB with the expected `Host` header, then through public DNS after delegation is in place
 
-### Validate Argo CD Before DNS Wiring
+### Current Downstream TLS Model
 
-Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Before public DNS is configured, validate that path by sending the request to the NLB hostname with the expected Argo CD `Host` header:
+The current validated downstream TLS model is one certificate per application hostname.
+
+- one hostname per application
+- one ingress per application hostname
+- one TLS secret per application hostname
+- one certificate per application hostname
+
+This is the current validated behavior for downstream applications exposed through Traefik and public DNS in the delegated subdomain.
+
+Wildcard or shared certificate support for the delegated public subdomain is not implemented yet.
+Treat that as a current limitation and a future evolution path rather than a supported configuration in the current repository state.
+A follow-up issue will track wildcard TLS support separately.
+
+### Validate Downstream HTTPS
+
+Downstream Argo CD is exposed through Traefik ingress, and the AWS NLB is in front of Traefik. Validate the full HTTPS path with these checks:
 
 ```bash
-curl -I -H 'Host: <argocd-hostname>' http://<aws-nlb-hostname>
+kubectl --kubeconfig <downstream-kubeconfig> -n cert-manager get pods
+kubectl --kubeconfig <downstream-kubeconfig> get clusterissuer
+kubectl --kubeconfig <downstream-kubeconfig> -n argocd get ingress argocd
+kubectl --kubeconfig <downstream-kubeconfig> -n argocd get certificate,secret
+curl -kI --resolve <argocd-hostname>:443:<aws-nlb-address> https://<argocd-hostname>/
 ```
 
 Success criteria:
 
-- an HTTP `200` response confirms that the request reached Traefik and matched the Argo CD ingress rule
-- an HTTP `404` response usually means Traefik is reachable but no matching ingress route exists yet
+- cert-manager pods are `Running` in the downstream cluster
+- the downstream `ClusterIssuer` is `Ready=True`
+- the Argo CD ingress advertises the expected hostname, ingress class, and TLS secret
+- the Argo CD TLS secret exists in the `argocd` namespace
+- the HTTPS request reaches Traefik and returns a non-`404` response for the Argo CD host
 
-That Host-header test is the validated proof that the downstream ingress path works end to end before public DNS is wired.
+After public DNS is delegated and the app record exists, validate the public hostname directly:
+
+```bash
+curl -I https://<argocd-hostname>/
+```
 
 ## Troubleshooting Notes
 
