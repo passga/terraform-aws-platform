@@ -13,25 +13,28 @@ The validated implementation covers:
 
 - bootstrap `k3s` on AWS
 - Rancher on the bootstrap cluster
-- cert-manager with a Let's Encrypt `ClusterIssuer`
+- bootstrap cert-manager with a Let's Encrypt `ClusterIssuer` for Rancher TLS
 - downstream RKE2 provisioned by Rancher on AWS
 - `aws-cloud-controller-manager` in the downstream cluster
+- downstream cert-manager
+- downstream Let's Encrypt `ClusterIssuer`
 - Traefik customized through `HelmChartConfig`
 - Traefik exposed as `Service` type `LoadBalancer`
 - AWS Network Load Balancer reconciliation
 - delegated public DNS in Route53 for downstream applications
-- Argo CD exposed through Traefik ingress
+- downstream HTTPS/TLS for Traefik-exposed applications
+- Argo CD exposed through Traefik ingress and validated through public HTTPS
 
 ## Current Downstream TLS Model
 
-The current validated TLS model for downstream applications is hostname-specific.
+The current validated downstream TLS model for applications exposed through Traefik is hostname-specific.
 
 - each downstream application is exposed through its own hostname
 - each application hostname uses its own ingress
 - each application hostname uses its own TLS secret
 - each application hostname uses its own certificate
 
-This is the currently validated behavior for applications exposed through Traefik and the delegated public subdomain.
+This is the currently validated behavior for downstream applications exposed through Traefik and the delegated public subdomain.
 
 Wildcard or shared certificate support for the delegated public subdomain is not implemented yet.
 Treat that as a current limitation of the repository, not as a supported path.
@@ -52,8 +55,8 @@ A follow-up issue will track wildcard TLS support as the next evolution of the d
 +-----------------------------------------------------------------------------------+
 |                              Bootstrap k3s cluster                                |
 |-----------------------------------------------------------------------------------|
-| cert-manager                                                                      |
-| ClusterIssuer (Let's Encrypt)                                                     |
+| cert-manager for Rancher TLS                                                      |
+| ClusterIssuer (Let's Encrypt) for Rancher TLS                                     |
 | Rancher                                                                           |
 +-----------------------------------------+-----------------------------------------+
                                           |
@@ -63,6 +66,8 @@ A follow-up issue will track wildcard TLS support as the next evolution of the d
 |-----------------------------------------------------------------------------------|
 | Control plane and worker machine pools on AWS                                     |
 | aws-cloud-controller-manager                                                      |
+| cert-manager for downstream application TLS                                       |
+| ClusterIssuer (Let's Encrypt) for downstream application TLS                      |
 | Traefik packaged with RKE2, customized via HelmChartConfig                        |
 | Service type LoadBalancer for rke2-traefik                                        |
 +-----------------------------------------+-----------------------------------------+
@@ -80,8 +85,9 @@ A follow-up issue will track wildcard TLS support as the next evolution of the d
 |                                  Ingress traffic                                  |
 |-----------------------------------------------------------------------------------|
 | Route53 delegated subdomain for downstream app hostnames                          |
+| Traefik-exposed downstream applications served through HTTPS/TLS                  |
 | Argo CD exposed through Traefik ingress                                           |
-| Validated through the AWS NLB with the expected Host header before DNS wiring     |
+| Argo CD validated through public HTTPS on its delegated hostname                  |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -93,10 +99,11 @@ With the current validated code path, this repository demonstrates:
 - Rancher served with cert-manager-managed TLS
 - a Rancher-managed downstream RKE2 cluster on AWS
 - external AWS cloud-provider integration through `aws-cloud-controller-manager`
+- downstream cert-manager and downstream Let's Encrypt issuer resources for application TLS
 - Traefik exposed by a Kubernetes `LoadBalancer` Service and reconciled to an AWS NLB
 - a persistent Route53 delegated public DNS layer for downstream application hostnames
-- downstream application exposure through Traefik ingress
-- Argo CD deployed in the downstream cluster and validated through the AWS NLB with the expected Host header before DNS wiring
+- downstream application exposure through Traefik ingress with validated HTTPS/TLS
+- Argo CD deployed in the downstream cluster and validated through public HTTPS on its delegated hostname
 - Rancher project and namespace resources created after cluster readiness
 
 ## Screenshot
